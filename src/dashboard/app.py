@@ -270,7 +270,16 @@ def main() -> None:
 
     st.subheader('Качество данных')
     if not quality.empty:
-        quality_display = quality.rename(columns=QUALITY_COLUMNS_RU)
+        quality_display = quality.copy()
+
+        if "metric" in quality_display.columns:
+            quality_display["metric"] = quality_display["metric"].replace(QUALITY_METRIC_RU)
+
+        if "formula" in quality_display.columns:
+            quality_display["formula"] = quality_display["formula"].replace(QUALITY_FORMULA_RU)
+
+        quality_display = quality_display.rename(columns=QUALITY_COLUMNS_RU)
+
         st.dataframe(quality_display, use_container_width=True)
     else:
         st.info('quality_report.csv пока не найден.')

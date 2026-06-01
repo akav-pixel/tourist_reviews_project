@@ -30,7 +30,6 @@ UI = {
     "ru": {
         "title": "Система анализа и визуализации отзывов туристических объектов",
         "caption": "Данные читаются из PostgreSQL или из демонстрационных CSV-файлов, если DATABASE_URL не задан.",
-        "interface": "Язык интерфейса",
         "filters": "Фильтры",
         "city": "Город",
         "type": "Тип объекта",
@@ -62,7 +61,6 @@ UI = {
     "kk": {
         "title": "Туристік нысандар пікірлерін талдау және визуализациялау жүйесі",
         "caption": "Деректер PostgreSQL дерекқорынан немесе DATABASE_URL берілмеген жағдайда демонстрациялық CSV файлдарынан оқылады.",
-        "interface": "Интерфейс тілі",
         "filters": "Сүзгілер",
         "city": "Қала",
         "type": "Нысан түрі",
@@ -365,7 +363,7 @@ def style_plotly_chart(fig):
     fig.update_layout(
         template="plotly_white",
         height=430,
-        margin=dict(l=30, r=30, t=70, b=45),
+        margin=dict(l=40, r=70, t=75, b=55),
         title=dict(
             x=0.02,
             xanchor="left",
@@ -464,29 +462,50 @@ def main() -> None:
 
     if "rating_normalized" in filtered.columns:
         rating_df = filtered.copy()
-        rating_df = rating_df[rating_df["rating_normalized"].notna()]
+        rating_df = rating_df[rating_df["rating_normalized"].notna()].copy()
 
-        fig = px.histogram(
-            rating_df,
-            x="rating_normalized",
-            nbins=10,
+        rating_df["rating_group"] = rating_df["rating_normalized"].round(2)
+
+        rating_counts = (
+            rating_df["rating_group"]
+            .value_counts()
+            .sort_index()
+            .reset_index()
+        )
+        rating_counts.columns = [T["rating_normalized"], T["review_count"]]
+
+        fig = px.bar(
+            rating_counts,
+            x=T["rating_normalized"],
+            y=T["review_count"],
             title=T["rating_distribution_title"],
-            text_auto=True,
+            text=T["review_count"],
         )
 
         fig.update_traces(
+            textposition="outside",
+            cliponaxis=False,
             marker_line_width=1,
             marker_line_color="white",
             opacity=0.9,
         )
 
+        max_count = rating_counts[T["review_count"]].max()
+
         fig.update_xaxes(
             title_text=T["rating_normalized"],
-            range=[0, 1],
+            type="category",
         )
 
         fig.update_yaxes(
             title_text=T["review_count"],
+            range=[0, max_count * 1.15 if max_count > 0 else 1],
+        )
+
+        fig.update_layout(
+            bargap=0.35,
+            uniformtext_minsize=10,
+            uniformtext_mode="show",
         )
 
         fig = style_plotly_chart(fig)
@@ -575,12 +594,18 @@ def main() -> None:
 
             fig.update_traces(
                 textposition="outside",
+                cliponaxis=False,
                 marker_line_width=1,
                 marker_line_color="white",
                 opacity=0.9,
             )
 
-            fig.update_xaxes(title_text=T["review_count"])
+            max_count = sentiment_counts[T["review_count"]].max()
+
+            fig.update_xaxes(
+                title_text=T["review_count"],
+                range=[0, max_count * 1.15 if max_count > 0 else 1],
+            )
             fig.update_yaxes(title_text=T["sentiment"])
 
             fig = style_plotly_chart(fig)
@@ -612,13 +637,19 @@ def main() -> None:
 
         fig.update_traces(
             textposition="outside",
+            cliponaxis=False,
             marker_line_width=1,
             marker_line_color="white",
             opacity=0.9,
         )
 
+        max_count = type_counts[T["review_count"]].max()
+
         fig.update_xaxes(title_text=T["type"])
-        fig.update_yaxes(title_text=T["review_count"])
+        fig.update_yaxes(
+            title_text=T["review_count"],
+            range=[0, max_count * 1.15 if max_count > 0 else 1],
+        )
 
         fig = style_plotly_chart(fig)
         st.plotly_chart(fig, use_container_width=True)

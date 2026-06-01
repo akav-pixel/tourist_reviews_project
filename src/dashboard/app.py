@@ -64,7 +64,19 @@ SENTIMENT_RU = {
     "neutral": "Нейтральная",
     "negative": "Отрицательная",
 }
+QUALITY_METRIC_RU = {
+    "K_tolyqtyk": "Коэффициент полноты",
+    "K_dubl": "Доля дубликатов",
+    "K_zharamdy": "Доля пригодных записей",
+    "K_unknown": "Доля неопределённого языка",
+}
 
+QUALITY_FORMULA_RU = {
+    "N_tolyq / N_zhalpy": "N_полных / N_общих",
+    "N_dubl / N_zhalpy": "N_дубликатов / N_общих",
+    "N_korpus / N_zhinalgan": "N_корпус / N_собранных",
+    "N_unknown / N_zhalpy": "N_unknown / N_общих",
+}
 def get_database_url() -> str | None:
     try:
         if "DATABASE_URL" in st.secrets:
@@ -196,27 +208,65 @@ def main() -> None:
 
     st.subheader('Распределение рейтингов')
     if 'rating_normalized' in filtered.columns:
-        fig = px.histogram(filtered, x='rating_normalized', nbins=10, title='Rating normalized')
+        fig = px.histogram(
+            filtered,
+            x='rating_normalized',
+            nbins=10,
+            title='Распределение нормализованных оценок',
+            labels={
+                'rating_normalized': 'Нормализованная оценка',
+                'count': 'Количество отзывов'
+            }
+        )
         st.plotly_chart(fig, use_container_width=True)
 
     left, right = st.columns(2)
+
     with left:
         st.subheader('Распределение языков')
         if 'language' in filtered.columns:
-            fig = px.pie(filtered, names='language', title='Language distribution')
+            language_display = filtered.copy()
+            language_display['language'] = language_display['language'].replace({
+                'ru': 'Русский',
+                'kk': 'Казахский',
+                'mixed': 'Смешанный',
+                'unknown': 'Не определён'
+            })
+
+            fig = px.pie(
+                language_display,
+                names='language',
+                title='Распределение языков отзывов'
+            )
+            fig.update_layout(legend_title_text='Язык')
             st.plotly_chart(fig, use_container_width=True)
+
     with right:
         st.subheader('Распределение тональности')
         if 'sentiment_label' in filtered.columns and filtered['sentiment_label'].notna().any():
+            sentiment_counts = (
+                filtered['sentiment_label']
+                .fillna('unknown')
+                .replace(SENTIMENT_RU)
+                .value_counts()
+                .reset_index()
+            )
+
+            sentiment_counts.columns = ['Тональность', 'Количество отзывов']
+
             fig = px.bar(
-                filtered['sentiment_label'].fillna('unknown').value_counts().reset_index(),
-                x='sentiment_label',
-                y='count',
-                title='Sentiment distribution',
+                sentiment_counts,
+                x='Тональность',
+                y='Количество отзывов',
+                title='Распределение тональности отзывов',
+                labels={
+                    'Тональность': 'Тональность',
+                    'Количество отзывов': 'Количество отзывов'
+                }
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info('Нет результатов sentiment analysis. Запустите predict-sentiment.')
+            st.info('Нет результатов анализа тональности. Запустите predict-sentiment.')
 
     st.subheader('Качество данных')
     if not quality.empty:

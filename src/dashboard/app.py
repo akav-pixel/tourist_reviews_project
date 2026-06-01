@@ -145,8 +145,8 @@ def load_from_db(database_url: str) -> tuple[pd.DataFrame, pd.DataFrame]:
             o.city,
             o.latitude,
             o.longitude,
-            a.sentiment_label,
-            a.sentiment_score
+            COALESCE(a.sentiment_label, r.sentiment_label) AS sentiment_label,
+            COALESCE(a.sentiment_score, r.sentiment_score) AS sentiment_score
         FROM reviews r
         JOIN tourist_objects o ON o.id = r.object_id
         LEFT JOIN review_analysis a ON a.review_id = r.id

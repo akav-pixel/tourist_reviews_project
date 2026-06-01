@@ -49,6 +49,7 @@ UI = {
         "language_distribution_title": "Распределение языков отзывов",
         "sentiment_distribution": "Распределение тональности",
         "sentiment_distribution_title": "Распределение тональности отзывов",
+        "type_distribution": "Распределение по типам объектов",
         "quality": "Качество данных",
         "reviews_table": "Таблица отзывов",
         "source_postgres": "Источник данных: PostgreSQL",
@@ -80,6 +81,7 @@ UI = {
         "language_distribution_title": "Пікір тілдерінің таралуы",
         "sentiment_distribution": "Тоналдылықтың таралуы",
         "sentiment_distribution_title": "Пікірлер тоналдылығының таралуы",
+        "type_distribution": "Нысан түрлері бойынша таралу",
         "quality": "Деректер сапасы",
         "reviews_table": "Пікірлер кестесі",
         "source_postgres": "Деректер көзі: PostgreSQL",
@@ -217,19 +219,6 @@ LABELS = {
 
 
 def get_database_url() -> str | None:
-    """
-    Reads PostgreSQL connection either from Streamlit Secrets or environment.
-
-    Supported formats:
-    1) DATABASE_URL = "postgresql+psycopg2://..."
-    2) [postgres]
-       host = "..."
-       port = 6543
-       database = "postgres"
-       user = "..."
-       password = "..."
-       sslmode = "require"
-    """
     try:
         if "DATABASE_URL" in st.secrets:
             return st.secrets["DATABASE_URL"]
@@ -372,6 +361,30 @@ def translate_column_values(
     return df
 
 
+def style_plotly_chart(fig):
+    fig.update_layout(
+        template="plotly_white",
+        height=430,
+        margin=dict(l=30, r=30, t=70, b=45),
+        title=dict(
+            x=0.02,
+            xanchor="left",
+            font=dict(size=18),
+        ),
+        font=dict(size=13),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.25,
+            xanchor="center",
+            x=0.5,
+        ),
+    )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(gridcolor="rgba(0,0,0,0.08)")
+    return fig
+
+
 def main() -> None:
     interface_lang = st.sidebar.radio(
         "Интерфейс / Тіл",
@@ -450,14 +463,33 @@ def main() -> None:
     st.subheader(T["rating_distribution"])
 
     if "rating_normalized" in filtered.columns:
+        rating_df = filtered.copy()
+        rating_df = rating_df[rating_df["rating_normalized"].notna()]
+
         fig = px.histogram(
-            filtered,
+            rating_df,
             x="rating_normalized",
             nbins=10,
             title=T["rating_distribution_title"],
+            text_auto=True,
         )
-        fig.update_xaxes(title_text=T["rating_normalized"])
-        fig.update_yaxes(title_text=T["review_count"])
+
+        fig.update_traces(
+            marker_line_width=1,
+            marker_line_color="white",
+            opacity=0.9,
+        )
+
+        fig.update_xaxes(
+            title_text=T["rating_normalized"],
+            range=[0, 1],
+        )
+
+        fig.update_yaxes(
+            title_text=T["review_count"],
+        )
+
+        fig = style_plotly_chart(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     left, right = st.columns(2)
@@ -473,12 +505,48 @@ def main() -> None:
                 L["language"],
             )
 
-            fig = px.pie(
-                language_display,
-                names="language",
-                title=T["language_distribution_title"],
+            language_counts = (
+                language_display["language"]
+                .fillna(L["language"].get("unknown", "unknown"))
+                .value_counts()
+                .reset_index()
             )
-            fig.update_layout(legend_title_text=T["language"])
+            language_counts.columns = [T["language"], T["review_count"]]
+
+            fig = px.pie(
+                language_counts,
+                names=T["language"],
+                values=T["review_count"],
+                title=T["language_distribution_title"],
+                hole=0.45,
+            )
+
+            fig.update_traces(
+                textposition="inside",
+                textinfo="percent+label",
+                pull=[0.03] * len(language_counts),
+            )
+
+            fig.update_layout(
+                template="plotly_white",
+                height=430,
+                margin=dict(l=30, r=30, t=70, b=45),
+                title=dict(
+                    x=0.02,
+                    xanchor="left",
+                    font=dict(size=18),
+                ),
+                font=dict(size=13),
+                legend_title_text=T["language"],
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.25,
+                    xanchor="center",
+                    x=0.5,
+                ),
+            )
+
             st.plotly_chart(fig, use_container_width=True)
 
     with right:
@@ -498,15 +566,62 @@ def main() -> None:
 
             fig = px.bar(
                 sentiment_counts,
-                x=T["sentiment"],
-                y=T["review_count"],
+                x=T["review_count"],
+                y=T["sentiment"],
+                orientation="h",
                 title=T["sentiment_distribution_title"],
+                text=T["review_count"],
             )
-            fig.update_xaxes(title_text=T["sentiment"])
-            fig.update_yaxes(title_text=T["review_count"])
+
+            fig.update_traces(
+                textposition="outside",
+                marker_line_width=1,
+                marker_line_color="white",
+                opacity=0.9,
+            )
+
+            fig.update_xaxes(title_text=T["review_count"])
+            fig.update_yaxes(title_text=T["sentiment"])
+
+            fig = style_plotly_chart(fig)
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info(T["no_sentiment"])
+
+    st.subheader(T["type_distribution"])
+
+    if "type" in filtered.columns:
+        type_display = filtered.copy()
+        type_display = translate_column_values(type_display, "type", L["type"])
+
+        type_counts = (
+            type_display["type"]
+            .fillna("unknown")
+            .value_counts()
+            .reset_index()
+        )
+        type_counts.columns = [T["type"], T["review_count"]]
+
+        fig = px.bar(
+            type_counts,
+            x=T["type"],
+            y=T["review_count"],
+            title=T["type_distribution"],
+            text=T["review_count"],
+        )
+
+        fig.update_traces(
+            textposition="outside",
+            marker_line_width=1,
+            marker_line_color="white",
+            opacity=0.9,
+        )
+
+        fig.update_xaxes(title_text=T["type"])
+        fig.update_yaxes(title_text=T["review_count"])
+
+        fig = style_plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
     st.subheader(T["quality"])
 

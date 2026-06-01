@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from html import escape
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -18,228 +19,238 @@ OBJECTS_PROCESSED_CSV = PROCESSED_DIR / "objects_processed.csv"
 SENTIMENT_PREDICTIONS_CSV = PROCESSED_DIR / "sentiment_predictions.csv"
 QUALITY_REPORT_CSV = PROCESSED_DIR / "quality_report.csv"
 
-
 st.set_page_config(
     page_title="Tourist Reviews Analytics",
-    page_icon="🏛️",
+    page_icon="🏞️",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
-
 
 UI = {
     "ru": {
         "title": "Система анализа и визуализации отзывов туристических объектов",
-        "caption": "Данные читаются из PostgreSQL или из демонстрационных CSV-файлов, если DATABASE_URL не задан.",
+        "caption": "Интерактивная панель для оценки туристических объектов на основе очищенных, нормализованных и подготовленных пользовательских отзывов.",
+        "badge": "Diploma Project",
         "filters": "Фильтры",
         "city": "Город",
         "type": "Тип объекта",
+        "source": "Источник",
         "language": "Язык",
         "quality_status": "Статус качества",
         "sentiment": "Тональность",
-        "objects": "Туристические объекты",
+        "objects": "Объекты",
         "reviews": "Отзывы",
         "avg_rating": "Средний рейтинг",
-        "valid_share": "Доля valid",
+        "valid_share": "Доля пригодных",
+        "duplicates": "Дубликаты",
+        "data_source": "Источник данных",
+        "source_postgres": "PostgreSQL",
+        "source_csv": "CSV demo fallback",
+        "postgres_warning": "Не удалось прочитать PostgreSQL, используется CSV fallback. Причина:",
+        "no_data": "Нет данных для отображения. Запустите: python -m src.main run-sample-pipeline",
+        "overview": "Обзор",
+        "analytics": "Аналитика",
+        "quality": "Качество данных",
+        "reviews_table": "Отзывы",
+        "map": "Карта",
         "rating_distribution": "Распределение рейтингов",
         "rating_distribution_title": "Распределение нормализованных оценок",
         "rating_normalized": "Нормализованная оценка",
         "review_count": "Количество отзывов",
         "language_distribution": "Распределение языков",
-        "language_distribution_title": "Распределение языков отзывов",
+        "language_distribution_title": "Языки отзывов",
         "sentiment_distribution": "Распределение тональности",
-        "sentiment_distribution_title": "Распределение тональности отзывов",
+        "sentiment_distribution_title": "Тональность отзывов",
         "type_distribution": "Распределение по типам объектов",
-        "quality": "Качество данных",
-        "reviews_table": "Таблица отзывов",
-        "source_postgres": "Источник данных: PostgreSQL",
-        "source_csv": "Источник данных: CSV demo fallback",
-        "postgres_warning": "Не удалось прочитать PostgreSQL, используется CSV fallback. Причина:",
-        "no_data": "Нет данных для отображения. Запустите: python -m src.main run-sample-pipeline",
+        "city_distribution": "Распределение по городам",
+        "source_distribution": "Распределение по источникам",
+        "quality_distribution": "Распределение по статусам качества",
+        "top_objects": "Топ объектов по количеству отзывов",
+        "object_name": "Название объекта",
         "no_quality": "quality_report.csv пока не найден.",
         "no_sentiment": "Нет результатов анализа тональности. Запустите predict-sentiment.",
+        "no_map": "Для карты нужны столбцы latitude и longitude.",
+        "empty_after_filters": "После применения фильтров данных не осталось.",
+        "search": "Поиск по тексту отзыва или названию объекта",
+        "reset_hint": "Чтобы вернуть все данные, очистите выбранные фильтры.",
+        "download": "Скачать отфильтрованные данные CSV",
+        "method_title": "Методическая логика панели",
+        "method_text": "Панель отражает поток данных дипломного проекта: сбор отзывов, очистка и нормализация, контроль качества, сохранение и визуализация аналитических показателей.",
     },
     "kk": {
         "title": "Туристік нысандар пікірлерін талдау және визуализациялау жүйесі",
-        "caption": "Деректер PostgreSQL дерекқорынан немесе DATABASE_URL берілмеген жағдайда демонстрациялық CSV файлдарынан оқылады.",
+        "caption": "Тазартылған, нормаланған және дайындалған пайдаланушы пікірлері негізінде туристік нысандарды бағалауға арналған интерактивті панель.",
+        "badge": "Diploma Project",
         "filters": "Сүзгілер",
         "city": "Қала",
         "type": "Нысан түрі",
+        "source": "Дереккөз",
         "language": "Тіл",
         "quality_status": "Деректер сапасының мәртебесі",
         "sentiment": "Тоналдылық",
-        "objects": "Туристік нысандар",
+        "objects": "Нысандар",
         "reviews": "Пікірлер",
         "avg_rating": "Орташа рейтинг",
-        "valid_share": "Valid үлесі",
+        "valid_share": "Жарамды үлесі",
+        "duplicates": "Дубликаттар",
+        "data_source": "Деректер көзі",
+        "source_postgres": "PostgreSQL",
+        "source_csv": "CSV demo fallback",
+        "postgres_warning": "PostgreSQL дерекқорынан оқу мүмкін болмады, CSV fallback қолданылады. Себебі:",
+        "no_data": "Көрсету үшін деректер жоқ. Іске қосыңыз: python -m src.main run-sample-pipeline",
+        "overview": "Шолу",
+        "analytics": "Талдау",
+        "quality": "Деректер сапасы",
+        "reviews_table": "Пікірлер",
+        "map": "Карта",
         "rating_distribution": "Рейтингтердің таралуы",
         "rating_distribution_title": "Нормаланған бағалардың таралуы",
         "rating_normalized": "Нормаланған баға",
         "review_count": "Пікірлер саны",
         "language_distribution": "Тілдердің таралуы",
-        "language_distribution_title": "Пікір тілдерінің таралуы",
+        "language_distribution_title": "Пікір тілдері",
         "sentiment_distribution": "Тоналдылықтың таралуы",
-        "sentiment_distribution_title": "Пікірлер тоналдылығының таралуы",
+        "sentiment_distribution_title": "Пікірлер тоналдылығы",
         "type_distribution": "Нысан түрлері бойынша таралу",
-        "quality": "Деректер сапасы",
-        "reviews_table": "Пікірлер кестесі",
-        "source_postgres": "Деректер көзі: PostgreSQL",
-        "source_csv": "Деректер көзі: CSV demo fallback",
-        "postgres_warning": "PostgreSQL дерекқорынан оқу мүмкін болмады, CSV fallback қолданылады. Себебі:",
-        "no_data": "Көрсету үшін деректер жоқ. Іске қосыңыз: python -m src.main run-sample-pipeline",
+        "city_distribution": "Қалалар бойынша таралу",
+        "source_distribution": "Дереккөздер бойынша таралу",
+        "quality_distribution": "Сапа мәртебелері бойынша таралу",
+        "top_objects": "Пікір саны бойынша үздік нысандар",
+        "object_name": "Нысан атауы",
         "no_quality": "quality_report.csv файлы әзірге табылған жоқ.",
         "no_sentiment": "Тоналдылықты талдау нәтижелері жоқ. predict-sentiment іске қосыңыз.",
+        "no_map": "Карта үшін latitude және longitude бағандары қажет.",
+        "empty_after_filters": "Сүзгілерден кейін деректер қалмады.",
+        "search": "Пікір мәтіні немесе нысан атауы бойынша іздеу",
+        "reset_hint": "Барлық деректерді қайтару үшін таңдалған сүзгілерді тазалаңыз.",
+        "download": "Сүзілген деректерді CSV ретінде жүктеу",
+        "method_title": "Панельдің әдістемелік логикасы",
+        "method_text": "Панель дипломдық жобаның деректер ағынын көрсетеді: пікірлерді жинау, тазарту және нормалау, сапаны бақылау, сақтау және аналитикалық көрсеткіштерді визуализациялау.",
     },
 }
-
 
 LABELS = {
     "ru": {
-        "columns_quality": {
-            "metric": "Показатель",
-            "formula": "Формула",
-            "numerator": "Числитель",
-            "denominator": "Знаменатель",
-            "value": "Значение",
-        },
+        "columns_quality": {"metric": "Показатель", "formula": "Формула", "numerator": "Числитель", "denominator": "Знаменатель", "value": "Значение"},
         "columns_reviews": {
-            "city": "Город",
-            "type": "Тип объекта",
-            "name": "Название объекта",
-            "source": "Источник",
-            "author": "Автор",
-            "text_cleaned": "Очищенный текст отзыва",
-            "rating_normalized": "Нормализованная оценка",
-            "language": "Язык",
-            "quality_status": "Статус качества",
-            "sentiment_label": "Тональность",
+            "city": "Город", "type": "Тип объекта", "name": "Название объекта", "source": "Источник",
+            "author": "Автор", "text_cleaned": "Очищенный текст отзыва", "review_text": "Текст отзыва",
+            "rating": "Исходная оценка", "rating_normalized": "Нормализованная оценка",
+            "review_date": "Дата отзыва", "language": "Язык", "quality_status": "Статус качества",
+            "sentiment_label": "Тональность", "sentiment_score": "Оценка тональности",
         },
-        "type": {
-            "museum": "Музей",
-            "hotel": "Отель",
-            "attraction": "Достопримечательность",
-            "restaurant": "Ресторан",
-            "recreation": "Зона отдыха",
-            "cultural_object": "Культурный объект",
-        },
-        "quality_status": {
-            "valid": "Пригоден",
-            "limited": "Ограниченно пригоден",
-            "rejected": "Отклонён",
-        },
-        "sentiment": {
-            "positive": "Положительная",
-            "neutral": "Нейтральная",
-            "negative": "Отрицательная",
-            "unknown": "Не определена",
-        },
-        "language": {
-            "ru": "Русский",
-            "kk": "Казахский",
-            "mixed": "Смешанный",
-            "unknown": "Не определён",
-        },
-        "quality_metric": {
-            "K_tolyqtyk": "Коэффициент полноты",
-            "K_tolyktyk": "Коэффициент полноты",
-            "K_dubl": "Доля дубликатов",
-            "K_zharamdy": "Доля пригодных записей",
-            "K_unknown": "Доля неопределённого языка",
-        },
-        "quality_formula": {
-            "N_tolyq / N_zhalpy": "N_полных / N_общих",
-            "N_tolyk / N_zhalpy": "N_полных / N_общих",
-            "N_dubl / N_zhalpy": "N_дубликатов / N_общих",
-            "N_korpus / N_zhinalgan": "N_корпус / N_собранных",
-            "N_unknown / N_zhalpy": "N_unknown / N_общих",
-        },
+        "type": {"museum": "Музей", "hotel": "Отель", "attraction": "Достопримечательность", "restaurant": "Ресторан", "recreation": "Зона отдыха", "cultural_object": "Культурный объект"},
+        "quality_status": {"valid": "Пригоден", "limited": "Ограниченно пригоден", "rejected": "Отклонён", "unknown": "Не определён"},
+        "sentiment": {"positive": "Положительная", "neutral": "Нейтральная", "negative": "Отрицательная", "unknown": "Не определена"},
+        "language": {"ru": "Русский", "kk": "Казахский", "mixed": "Смешанный", "unknown": "Не определён"},
+        "quality_metric": {"K_tolyqtyk": "Коэффициент полноты", "K_tolyktyk": "Коэффициент полноты", "K_dubl": "Доля дубликатов", "K_zharamdy": "Доля пригодных записей", "K_unknown": "Доля неопределённого языка"},
+        "quality_formula": {"N_tolyq / N_zhalpy": "N_полных / N_общих", "N_tolyk / N_zhalpy": "N_полных / N_общих", "N_dubl / N_zhalpy": "N_дубликатов / N_общих", "N_korpus / N_zhinalgan": "N_корпус / N_собранных", "N_unknown / N_zhalpy": "N_unknown / N_общих"},
     },
     "kk": {
-        "columns_quality": {
-            "metric": "Көрсеткіш",
-            "formula": "Формула",
-            "numerator": "Алым",
-            "denominator": "Бөлім",
-            "value": "Мәні",
-        },
+        "columns_quality": {"metric": "Көрсеткіш", "formula": "Формула", "numerator": "Алым", "denominator": "Бөлім", "value": "Мәні"},
         "columns_reviews": {
-            "city": "Қала",
-            "type": "Нысан түрі",
-            "name": "Нысан атауы",
-            "source": "Дереккөз",
-            "author": "Автор",
-            "text_cleaned": "Тазартылған пікір мәтіні",
-            "rating_normalized": "Нормаланған баға",
-            "language": "Тіл",
-            "quality_status": "Сапа мәртебесі",
-            "sentiment_label": "Тоналдылық",
+            "city": "Қала", "type": "Нысан түрі", "name": "Нысан атауы", "source": "Дереккөз",
+            "author": "Автор", "text_cleaned": "Тазартылған пікір мәтіні", "review_text": "Пікір мәтіні",
+            "rating": "Бастапқы баға", "rating_normalized": "Нормаланған баға",
+            "review_date": "Пікір күні", "language": "Тіл", "quality_status": "Сапа мәртебесі",
+            "sentiment_label": "Тоналдылық", "sentiment_score": "Тоналдылық бағасы",
         },
-        "type": {
-            "museum": "Музей",
-            "hotel": "Қонақүй",
-            "attraction": "Көрікті орын",
-            "restaurant": "Мейрамхана",
-            "recreation": "Демалыс аймағы",
-            "cultural_object": "Мәдени нысан",
-        },
-        "quality_status": {
-            "valid": "Жарамды",
-            "limited": "Шектеулі жарамды",
-            "rejected": "Қабылданбаған",
-        },
-        "sentiment": {
-            "positive": "Оң",
-            "neutral": "Бейтарап",
-            "negative": "Теріс",
-            "unknown": "Анықталмаған",
-        },
-        "language": {
-            "ru": "Орыс тілі",
-            "kk": "Қазақ тілі",
-            "mixed": "Аралас",
-            "unknown": "Анықталмаған",
-        },
-        "quality_metric": {
-            "K_tolyqtyk": "Толықтық коэффициенті",
-            "K_tolyktyk": "Толықтық коэффициенті",
-            "K_dubl": "Қайталанатын жазбалар үлесі",
-            "K_zharamdy": "Жарамды жазбалар үлесі",
-            "K_unknown": "Тілі анықталмаған жазбалар үлесі",
-        },
-        "quality_formula": {
-            "N_tolyq / N_zhalpy": "N_толық / N_жалпы",
-            "N_tolyk / N_zhalpy": "N_толық / N_жалпы",
-            "N_dubl / N_zhalpy": "N_дубликат / N_жалпы",
-            "N_korpus / N_zhinalgan": "N_корпус / N_жиналған",
-            "N_unknown / N_zhalpy": "N_unknown / N_жалпы",
-        },
+        "type": {"museum": "Музей", "hotel": "Қонақүй", "attraction": "Көрікті орын", "restaurant": "Мейрамхана", "recreation": "Демалыс аймағы", "cultural_object": "Мәдени нысан"},
+        "quality_status": {"valid": "Жарамды", "limited": "Шектеулі жарамды", "rejected": "Қабылданбаған", "unknown": "Анықталмаған"},
+        "sentiment": {"positive": "Оң", "neutral": "Бейтарап", "negative": "Теріс", "unknown": "Анықталмаған"},
+        "language": {"ru": "Орыс тілі", "kk": "Қазақ тілі", "mixed": "Аралас", "unknown": "Анықталмаған"},
+        "quality_metric": {"K_tolyqtyk": "Толықтық коэффициенті", "K_tolyktyk": "Толықтық коэффициенті", "K_dubl": "Қайталанатын жазбалар үлесі", "K_zharamdy": "Жарамды жазбалар үлесі", "K_unknown": "Тілі анықталмаған жазбалар үлесі"},
+        "quality_formula": {"N_tolyq / N_zhalpy": "N_толық / N_жалпы", "N_tolyk / N_zhalpy": "N_толық / N_жалпы", "N_dubl / N_zhalpy": "N_дубликат / N_жалпы", "N_korpus / N_zhinalgan": "N_корпус / N_жиналған", "N_unknown / N_zhalpy": "N_unknown / N_жалпы"},
     },
 }
+
+
+def inject_css() -> None:
+    st.markdown("""
+    <style>
+    :root {
+        --bg:#f4f7fb; --card:#fff; --text:#0f172a; --muted:#64748b;
+        --line:#e5e7eb; --primary:#0f766e; --shadow:0 14px 34px rgba(15,23,42,.08);
+    }
+    .stApp {
+        background: radial-gradient(circle at 5% 0%, rgba(37,99,235,.12), transparent 30%),
+                    radial-gradient(circle at 95% 8%, rgba(15,118,110,.13), transparent 28%),
+                    linear-gradient(180deg,#f8fafc 0%,var(--bg) 100%);
+    }
+    .block-container {padding-top:2rem; padding-bottom:2.5rem; max-width:1400px;}
+    section[data-testid="stSidebar"] {background:rgba(255,255,255,.94); border-right:1px solid var(--line);}
+    .hero {
+        display:flex; justify-content:space-between; align-items:center; gap:24px;
+        padding:30px 34px; margin-bottom:24px; border-radius:28px;
+        background:linear-gradient(135deg,rgba(15,118,110,.96),rgba(37,99,235,.96));
+        color:white; box-shadow:0 22px 50px rgba(15,118,110,.22); overflow:hidden; position:relative;
+    }
+    .hero:after {content:""; position:absolute; right:-80px; top:-80px; width:230px; height:230px; border-radius:999px; background:rgba(255,255,255,.12);}
+    .hero h1 {font-size:34px; line-height:1.22; margin:0 0 10px 0; font-weight:850; letter-spacing:-.02em; max-width:980px;}
+    .hero p {margin:0; font-size:16px; opacity:.94; max-width:940px;}
+    .hero-badge {z-index:1; padding:12px 18px; border-radius:999px; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.32); font-weight:750; white-space:nowrap;}
+    .metric-card, .info-card, .chart-card {
+        border-radius:22px; background:rgba(255,255,255,.96); border:1px solid var(--line); box-shadow:var(--shadow);
+    }
+    .metric-card {padding:19px 20px; min-height:118px;}
+    .metric-title {display:flex; gap:8px; color:var(--muted); font-size:14px; font-weight:700; margin-bottom:10px;}
+    .metric-value {color:var(--text); font-size:31px; font-weight:850; letter-spacing:-.03em;}
+    .metric-help {color:var(--muted); font-size:12px; margin-top:8px;}
+    .info-card {padding:20px 22px; margin-bottom:20px;}
+    .info-card h3 {margin:0 0 8px 0; color:var(--text); font-size:18px;}
+    .info-card p {margin:0; color:var(--muted); line-height:1.58; font-size:14px;}
+    .chart-card {padding:18px 18px 10px 18px; margin-bottom:20px;}
+    .small-label {display:inline-flex; padding:7px 11px; border-radius:999px; background:#ecfdf5; color:#047857; border:1px solid #bbf7d0; font-size:12px; font-weight:800; margin-bottom:12px;}
+    div[data-testid="stDataFrame"] {border-radius:18px; overflow:hidden; border:1px solid var(--line);}
+    .stTabs [data-baseweb="tab-list"] {gap:10px; background:rgba(255,255,255,.58); padding:8px; border-radius:999px; border:1px solid var(--line); width:fit-content;}
+    .stTabs [data-baseweb="tab"] {padding:9px 17px; border-radius:999px; font-weight:750;}
+    .stTabs [aria-selected="true"] {background:#0f766e!important; color:white!important;}
+    h1,h2,h3 {color:var(--text);}
+    .stDownloadButton button {border-radius:999px; font-weight:750;}
+    @media (max-width:900px) {.hero{flex-direction:column;align-items:flex-start}.hero h1{font-size:27px}}
+    </style>
+    """, unsafe_allow_html=True)
 
 
 def get_database_url() -> str | None:
     try:
         if "DATABASE_URL" in st.secrets:
             return st.secrets["DATABASE_URL"]
-
         if "postgres" in st.secrets:
             cfg = st.secrets["postgres"]
-
             user = cfg["user"]
             password = quote_plus(cfg["password"])
             host = cfg["host"]
-            port = cfg["port"]
+            port = cfg.get("port", 5432)
             database = cfg["database"]
             sslmode = cfg.get("sslmode", "require")
-
-            return (
-                f"postgresql+psycopg2://{user}:{password}"
-                f"@{host}:{port}/{database}?sslmode={sslmode}"
-            )
-
+            return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}?sslmode={sslmode}"
     except Exception:
         pass
-
     return os.getenv("DATABASE_URL")
+
+
+def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    for col in ["city", "type", "source", "language", "quality_status", "sentiment_label"]:
+        if col not in df.columns:
+            df[col] = "unknown"
+        df[col] = df[col].fillna("unknown").astype(str)
+
+    if "name" not in df.columns:
+        df["name"] = "unknown"
+
+    for col in ["rating", "rating_normalized", "sentiment_score", "latitude", "longitude"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    if "review_date" in df.columns:
+        df["review_date"] = pd.to_datetime(df["review_date"], errors="coerce")
+
+    if "text_cleaned" not in df.columns and "review_text" in df.columns:
+        df["text_cleaned"] = df["review_text"]
+
+    return df
 
 
 @st.cache_data(show_spinner=False)
@@ -255,463 +266,394 @@ def load_from_csv() -> tuple[pd.DataFrame, pd.DataFrame]:
         return pd.DataFrame(), pd.DataFrame()
 
     reviews = pd.read_csv(REVIEWS_PROCESSED_CSV)
-    objects = (
-        pd.read_csv(OBJECTS_PROCESSED_CSV)
-        if OBJECTS_PROCESSED_CSV.exists()
-        else pd.DataFrame()
-    )
-    sentiment = (
-        pd.read_csv(SENTIMENT_PREDICTIONS_CSV)
-        if SENTIMENT_PREDICTIONS_CSV.exists()
-        else pd.DataFrame()
-    )
-
+    objects = pd.read_csv(OBJECTS_PROCESSED_CSV) if OBJECTS_PROCESSED_CSV.exists() else pd.DataFrame()
+    sentiment = pd.read_csv(SENTIMENT_PREDICTIONS_CSV) if SENTIMENT_PREDICTIONS_CSV.exists() else pd.DataFrame()
     df = reviews.copy()
 
-    if not objects.empty and "source_object_id" in df.columns:
-        keep = [
-            c
-            for c in ["source_object_id", "name", "type", "city", "latitude", "longitude"]
-            if c in objects.columns
-        ]
-        df = df.merge(objects[keep], on="source_object_id", how="left")
+    if not objects.empty:
+        object_cols = [c for c in ["id", "source_object_id", "name", "type", "city", "latitude", "longitude", "source_url"] if c in objects.columns]
+        if "source_object_id" in df.columns and "source_object_id" in objects.columns:
+            df = df.merge(objects[object_cols].drop_duplicates("source_object_id"), on="source_object_id", how="left", suffixes=("", "_object"))
+        elif "object_id" in df.columns and "id" in objects.columns:
+            obj = objects[object_cols].rename(columns={"id": "object_id"})
+            df = df.merge(obj.drop_duplicates("object_id"), on="object_id", how="left", suffixes=("", "_object"))
 
-    if not sentiment.empty and "review_id" in sentiment.columns:
-        keep = [
-            c
-            for c in ["review_id", "sentiment_label", "sentiment_score"]
-            if c in sentiment.columns
-        ]
-        df = df.merge(sentiment[keep], on="review_id", how="left")
+    if not sentiment.empty and "review_id" in sentiment.columns and "review_id" in df.columns:
+        sent_cols = [c for c in ["review_id", "sentiment_label", "sentiment_score"] if c in sentiment.columns]
+        df = df.merge(sentiment[sent_cols].drop_duplicates("review_id"), on="review_id", how="left", suffixes=("", "_pred"))
+        if "sentiment_label_pred" in df.columns:
+            df["sentiment_label"] = df.get("sentiment_label", pd.Series(index=df.index, dtype="object")).fillna(df["sentiment_label_pred"])
+            df = df.drop(columns=["sentiment_label_pred"])
+        if "sentiment_score_pred" in df.columns:
+            df["sentiment_score"] = df.get("sentiment_score", pd.Series(index=df.index, dtype="float")).fillna(df["sentiment_score_pred"])
+            df = df.drop(columns=["sentiment_score_pred"])
 
-    return df, load_quality_report()
+    return prepare_dataframe(df), load_quality_report()
 
 
 @st.cache_data(show_spinner=False)
 def load_from_db(database_url: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     engine = create_engine(database_url, pool_pre_ping=True)
 
-    sql = text(
-        """
+    sql_with_analysis = text("""
         SELECT
-            r.review_id,
-            r.author,
-            r.review_text,
-            r.text_cleaned,
-            r.rating,
-            r.rating_normalized,
-            r.review_date,
-            r.language,
-            r.quality_status,
-            r.is_duplicate,
-            r.source,
-            o.name,
-            o.type,
-            o.city,
-            o.latitude,
-            o.longitude,
+            r.review_id, r.author, r.review_text, r.text_cleaned, r.rating, r.rating_normalized,
+            r.review_date, r.language, r.quality_status, r.is_duplicate, r.source,
+            o.name, o.type, o.city, o.latitude, o.longitude,
             COALESCE(a.sentiment_label, r.sentiment_label) AS sentiment_label,
             COALESCE(a.sentiment_score, r.sentiment_score) AS sentiment_score
         FROM reviews r
         JOIN tourist_objects o ON o.id = r.object_id
         LEFT JOIN review_analysis a ON a.review_id = r.id
-        """
-    )
+    """)
+
+    sql_without_analysis = text("""
+        SELECT
+            r.review_id, r.author, r.review_text, r.text_cleaned, r.rating, r.rating_normalized,
+            r.review_date, r.language, r.quality_status, r.is_duplicate, r.source,
+            r.sentiment_label, r.sentiment_score,
+            o.name, o.type, o.city, o.latitude, o.longitude
+        FROM reviews r
+        JOIN tourist_objects o ON o.id = r.object_id
+    """)
 
     with engine.connect() as conn:
-        df = pd.read_sql_query(sql, conn)
+        try:
+            df = pd.read_sql_query(sql_with_analysis, conn)
+        except Exception:
+            df = pd.read_sql_query(sql_without_analysis, conn)
 
-    return df, load_quality_report()
-
-
-def multiselect_filter(
-    df: pd.DataFrame,
-    column: str,
-    label: str,
-    value_labels: dict[str, str] | None = None,
-) -> pd.DataFrame:
-    if column not in df.columns or df[column].dropna().empty:
-        return df
-
-    values = sorted(df[column].dropna().astype(str).unique())
-    value_labels = value_labels or {}
-
-    selected = st.sidebar.multiselect(
-        label,
-        values,
-        default=values,
-        format_func=lambda x: value_labels.get(str(x), str(x)),
-    )
-
-    if selected:
-        return df[df[column].astype(str).isin(selected)]
-
-    return df
+    return prepare_dataframe(df), load_quality_report()
 
 
-def translate_column_values(
-    df: pd.DataFrame,
-    column: str,
-    labels: dict[str, str],
-) -> pd.DataFrame:
-    if column in df.columns:
-        df[column] = df[column].astype(str).replace(labels)
-    return df
+def metric_card(title: str, value: str, icon: str, help_text: str = "") -> None:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-title"><span>{escape(icon)}</span><span>{escape(title)}</span></div>
+        <div class="metric-value">{escape(value)}</div>
+        <div class="metric-help">{escape(help_text)}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
-def style_plotly_chart(fig):
+def info_card(title: str, text_value: str) -> None:
+    st.markdown(f"""
+    <div class="info-card">
+        <h3>{escape(title)}</h3>
+        <p>{escape(text_value)}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def chart_start(label: str) -> None:
+    st.markdown(f'<div class="chart-card"><div class="small-label">{escape(label)}</div>', unsafe_allow_html=True)
+
+
+def chart_end() -> None:
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def style_chart(fig, height: int = 430):
     fig.update_layout(
         template="plotly_white",
-        height=430,
-        margin=dict(l=40, r=70, t=75, b=55),
-        title=dict(
-            x=0.02,
-            xanchor="left",
-            font=dict(size=18),
-        ),
+        height=height,
+        margin=dict(l=40, r=45, t=70, b=50),
+        title=dict(x=0.02, xanchor="left", font=dict(size=18)),
         font=dict(size=13),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.25,
-            xanchor="center",
-            x=0.5,
-        ),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.28, xanchor="center", x=0.5),
     )
     fig.update_xaxes(showgrid=False)
-    fig.update_yaxes(gridcolor="rgba(0,0,0,0.08)")
+    fig.update_yaxes(gridcolor="rgba(15,23,42,.08)")
     return fig
 
 
+def translate_values(df: pd.DataFrame, column: str, labels: dict[str, str]) -> pd.DataFrame:
+    if column in df.columns:
+        df[column] = df[column].fillna("unknown").astype(str).replace(labels)
+    return df
+
+
+def multiselect_filter(df: pd.DataFrame, column: str, label: str, value_labels: dict[str, str] | None = None) -> pd.DataFrame:
+    if column not in df.columns or df[column].dropna().empty:
+        return df
+    value_labels = value_labels or {}
+    values = sorted(df[column].dropna().astype(str).unique())
+    selected = st.sidebar.multiselect(
+        label,
+        options=values,
+        default=values,
+        format_func=lambda x: value_labels.get(str(x), str(x)),
+    )
+    return df[df[column].astype(str).isin(selected)] if selected else df
+
+
+def search_filter(df: pd.DataFrame, query: str) -> pd.DataFrame:
+    query = query.lower().strip()
+    if not query:
+        return df
+    search_columns = [c for c in ["name", "text_cleaned", "review_text", "author"] if c in df.columns]
+    mask = pd.Series(False, index=df.index)
+    for column in search_columns:
+        mask = mask | df[column].fillna("").astype(str).str.lower().str.contains(query, regex=False)
+    return df[mask]
+
+
+def make_counts(df: pd.DataFrame, column: str, name_col: str, count_col: str, labels: dict[str, str] | None = None) -> pd.DataFrame:
+    if column not in df.columns:
+        return pd.DataFrame(columns=[name_col, count_col])
+    counts = df[column].fillna("unknown").astype(str).replace(labels or {}).value_counts().reset_index()
+    counts.columns = [name_col, count_col]
+    return counts
+
+
+def csv_bytes(df: pd.DataFrame) -> bytes:
+    return df.to_csv(index=False).encode("utf-8-sig")
+
+
 def main() -> None:
+    inject_css()
+
     interface_lang = st.sidebar.radio(
         "Интерфейс / Тіл",
         options=["ru", "kk"],
         format_func=lambda x: "Русский" if x == "ru" else "Қазақша",
+        horizontal=True,
     )
-
     T = UI[interface_lang]
     L = LABELS[interface_lang]
 
-    st.title(T["title"])
-    st.caption(T["caption"])
+    st.markdown(f"""
+    <div class="hero">
+        <div>
+            <h1>{escape(T["title"])}</h1>
+            <p>{escape(T["caption"])}</p>
+        </div>
+        <div class="hero-badge">{escape(T["badge"])}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     database_url = get_database_url()
+    data_source = T["source_csv"]
 
     try:
         if database_url:
             df, quality = load_from_db(database_url)
-            st.success(T["source_postgres"])
+            data_source = T["source_postgres"]
         else:
             df, quality = load_from_csv()
-            st.info(T["source_csv"])
+            data_source = T["source_csv"]
     except Exception as exc:
         st.warning(f"{T['postgres_warning']} {exc}")
         df, quality = load_from_csv()
+        data_source = T["source_csv"]
 
     if df.empty:
         st.error(T["no_data"])
         return
 
     st.sidebar.header(T["filters"])
-
     filtered = df.copy()
     filtered = multiselect_filter(filtered, "city", T["city"])
     filtered = multiselect_filter(filtered, "type", T["type"], L["type"])
+    filtered = multiselect_filter(filtered, "source", T["source"])
     filtered = multiselect_filter(filtered, "language", T["language"], L["language"])
-    filtered = multiselect_filter(
-        filtered,
-        "quality_status",
-        T["quality_status"],
-        L["quality_status"],
-    )
-    filtered = multiselect_filter(
-        filtered,
-        "sentiment_label",
-        T["sentiment"],
-        L["sentiment"],
-    )
+    filtered = multiselect_filter(filtered, "quality_status", T["quality_status"], L["quality_status"])
+    filtered = multiselect_filter(filtered, "sentiment_label", T["sentiment"], L["sentiment"])
+    filtered = search_filter(filtered, st.sidebar.text_input(T["search"], value=""))
+    st.sidebar.caption(T["reset_hint"])
 
-    col1, col2, col3, col4 = st.columns(4)
+    if filtered.empty:
+        st.warning(T["empty_after_filters"])
+        return
 
     if "source_object_id" in filtered.columns:
         object_count = int(filtered["source_object_id"].nunique())
-    elif "name" in filtered.columns:
-        object_count = int(filtered["name"].nunique())
+    elif "object_id" in filtered.columns:
+        object_count = int(filtered["object_id"].nunique())
     else:
-        object_count = 0
+        object_count = int(filtered["name"].nunique()) if "name" in filtered.columns else 0
 
-    col1.metric(T["objects"], object_count)
-    col2.metric(T["reviews"], len(filtered))
+    review_count = len(filtered)
+    avg_rating = filtered["rating_normalized"].mean() if "rating_normalized" in filtered.columns else None
+    valid_share = (filtered["quality_status"].astype(str) == "valid").mean() if "quality_status" in filtered.columns else None
+    duplicate_share = filtered["is_duplicate"].fillna(False).astype(bool).mean() if "is_duplicate" in filtered.columns else None
 
-    avg_rating = (
-        filtered["rating_normalized"].mean()
-        if "rating_normalized" in filtered.columns and not filtered.empty
-        else None
-    )
-    col3.metric(T["avg_rating"], f"{avg_rating:.2f}" if pd.notna(avg_rating) else "—")
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1:
+        metric_card(T["objects"], f"{object_count:,}".replace(",", " "), "🏛️", T["object_name"])
+    with c2:
+        metric_card(T["reviews"], f"{review_count:,}".replace(",", " "), "📝", T["review_count"])
+    with c3:
+        metric_card(T["avg_rating"], f"{avg_rating:.2f}" if pd.notna(avg_rating) else "—", "⭐", T["rating_normalized"])
+    with c4:
+        metric_card(T["valid_share"], f"{valid_share:.1%}" if pd.notna(valid_share) else "—", "✅", T["quality_status"])
+    with c5:
+        metric_card(T["duplicates"], f"{duplicate_share:.1%}" if pd.notna(duplicate_share) else "—", "♻️", T["quality"])
 
-    valid_share = (
-        (filtered["quality_status"] == "valid").mean()
-        if "quality_status" in filtered.columns and not filtered.empty
-        else None
-    )
-    col4.metric(T["valid_share"], f"{valid_share:.1%}" if pd.notna(valid_share) else "—")
+    st.markdown("")
 
-    st.subheader(T["rating_distribution"])
+    tab_overview, tab_analytics, tab_quality, tab_reviews, tab_map = st.tabs([
+        f"📌 {T['overview']}",
+        f"📊 {T['analytics']}",
+        f"✅ {T['quality']}",
+        f"📝 {T['reviews_table']}",
+        f"🗺️ {T['map']}",
+    ])
 
-    if "rating_normalized" in filtered.columns:
-        rating_df = filtered.copy()
-        rating_df = rating_df[rating_df["rating_normalized"].notna()].copy()
+    with tab_overview:
+        left, right = st.columns([1.2, 1])
+        with left:
+            info_card(T["method_title"], T["method_text"])
+        with right:
+            info_card(T["data_source"], data_source)
 
-        rating_df["rating_group"] = rating_df["rating_normalized"].round(2)
+        col_a, col_b = st.columns(2)
 
-        rating_counts = (
-            rating_df["rating_group"]
-            .value_counts()
-            .sort_index()
-            .reset_index()
-        )
-        rating_counts.columns = [T["rating_normalized"], T["review_count"]]
+        with col_a:
+            chart_start(T["city_distribution"])
+            city_counts = make_counts(filtered, "city", T["city"], T["review_count"])
+            if not city_counts.empty:
+                fig = px.bar(city_counts.head(12), x=T["review_count"], y=T["city"], orientation="h", title=T["city_distribution"], text=T["review_count"])
+                fig.update_traces(textposition="outside", cliponaxis=False)
+                fig.update_yaxes(autorange="reversed")
+                st.plotly_chart(style_chart(fig), use_container_width=True)
+            chart_end()
 
-        fig = px.bar(
-            rating_counts,
-            x=T["rating_normalized"],
-            y=T["review_count"],
-            title=T["rating_distribution_title"],
-            text=T["review_count"],
-        )
+        with col_b:
+            chart_start(T["top_objects"])
+            if "name" in filtered.columns:
+                obj_counts = filtered["name"].fillna("unknown").astype(str).value_counts().head(12).reset_index()
+                obj_counts.columns = [T["object_name"], T["review_count"]]
+                fig = px.bar(obj_counts, x=T["review_count"], y=T["object_name"], orientation="h", title=T["top_objects"], text=T["review_count"])
+                fig.update_traces(textposition="outside", cliponaxis=False)
+                fig.update_yaxes(autorange="reversed")
+                st.plotly_chart(style_chart(fig), use_container_width=True)
+            chart_end()
 
-        fig.update_traces(
-            textposition="outside",
-            cliponaxis=False,
-            marker_line_width=1,
-            marker_line_color="white",
-            opacity=0.9,
-        )
+    with tab_analytics:
+        chart_start(T["rating_distribution"])
+        if "rating_normalized" in filtered.columns:
+            rating_df = filtered[filtered["rating_normalized"].notna()].copy()
+            rating_df["rating_group"] = rating_df["rating_normalized"].round(2)
+            rating_counts = rating_df["rating_group"].value_counts().sort_index().reset_index()
+            rating_counts.columns = [T["rating_normalized"], T["review_count"]]
+            if not rating_counts.empty:
+                fig = px.bar(rating_counts, x=T["rating_normalized"], y=T["review_count"], title=T["rating_distribution_title"], text=T["review_count"])
+                fig.update_traces(textposition="outside", cliponaxis=False, marker_line_width=1, marker_line_color="white", opacity=.94)
+                fig.update_xaxes(title_text=T["rating_normalized"], type="category")
+                max_count = rating_counts[T["review_count"]].max()
+                fig.update_yaxes(title_text=T["review_count"], range=[0, max_count * 1.16 if max_count > 0 else 1])
+                st.plotly_chart(style_chart(fig), use_container_width=True)
+        chart_end()
 
-        max_count = rating_counts[T["review_count"]].max()
+        col_a, col_b = st.columns(2)
 
-        fig.update_xaxes(
-            title_text=T["rating_normalized"],
-            type="category",
-        )
+        with col_a:
+            chart_start(T["language_distribution"])
+            language_counts = make_counts(filtered, "language", T["language"], T["review_count"], L["language"])
+            if not language_counts.empty:
+                fig = px.pie(language_counts, names=T["language"], values=T["review_count"], title=T["language_distribution_title"], hole=.45)
+                fig.update_traces(textposition="inside", textinfo="percent+label")
+                st.plotly_chart(style_chart(fig), use_container_width=True)
+            chart_end()
 
-        fig.update_yaxes(
-            title_text=T["review_count"],
-            range=[0, max_count * 1.15 if max_count > 0 else 1],
-        )
+        with col_b:
+            chart_start(T["sentiment_distribution"])
+            if "sentiment_label" in filtered.columns and filtered["sentiment_label"].notna().any():
+                sentiment_counts = make_counts(filtered, "sentiment_label", T["sentiment"], T["review_count"], L["sentiment"])
+                fig = px.bar(sentiment_counts, x=T["review_count"], y=T["sentiment"], orientation="h", title=T["sentiment_distribution_title"], text=T["review_count"])
+                fig.update_traces(textposition="outside", cliponaxis=False, marker_line_width=1, marker_line_color="white", opacity=.94)
+                fig.update_yaxes(autorange="reversed")
+                st.plotly_chart(style_chart(fig), use_container_width=True)
+            else:
+                st.info(T["no_sentiment"])
+            chart_end()
 
-        fig.update_layout(
-            bargap=0.35,
-            uniformtext_minsize=10,
-            uniformtext_mode="show",
-        )
+        col_c, col_d = st.columns(2)
 
-        fig = style_plotly_chart(fig)
-        st.plotly_chart(fig, use_container_width=True)
+        with col_c:
+            chart_start(T["type_distribution"])
+            type_counts = make_counts(filtered, "type", T["type"], T["review_count"], L["type"])
+            if not type_counts.empty:
+                fig = px.bar(type_counts, x=T["type"], y=T["review_count"], title=T["type_distribution"], text=T["review_count"])
+                fig.update_traces(textposition="outside", cliponaxis=False, marker_line_width=1, marker_line_color="white", opacity=.94)
+                st.plotly_chart(style_chart(fig), use_container_width=True)
+            chart_end()
 
-    left, right = st.columns(2)
+        with col_d:
+            chart_start(T["source_distribution"])
+            source_counts = make_counts(filtered, "source", T["source"], T["review_count"])
+            if not source_counts.empty:
+                fig = px.pie(source_counts, names=T["source"], values=T["review_count"], title=T["source_distribution"], hole=.52)
+                fig.update_traces(textposition="inside", textinfo="percent+label")
+                st.plotly_chart(style_chart(fig), use_container_width=True)
+            chart_end()
 
-    with left:
-        st.subheader(T["language_distribution"])
+    with tab_quality:
+        col_a, col_b = st.columns([1, 1])
+        with col_a:
+            chart_start(T["quality_distribution"])
+            quality_counts = make_counts(filtered, "quality_status", T["quality_status"], T["review_count"], L["quality_status"])
+            if not quality_counts.empty:
+                fig = px.bar(quality_counts, x=T["quality_status"], y=T["review_count"], title=T["quality_distribution"], text=T["review_count"])
+                fig.update_traces(textposition="outside", cliponaxis=False, marker_line_width=1, marker_line_color="white", opacity=.94)
+                st.plotly_chart(style_chart(fig), use_container_width=True)
+            chart_end()
 
-        if "language" in filtered.columns:
-            language_display = filtered.copy()
-            language_display = translate_column_values(
-                language_display,
-                "language",
-                L["language"],
-            )
+        with col_b:
+            info_card(T["quality"], "Valid / Жарамды — пригодно для корпуса; Limited / Шектеулі — используется ограниченно; Rejected / Қабылданбаған — исключается из основного анализа.")
 
-            language_counts = (
-                language_display["language"]
-                .fillna(L["language"].get("unknown", "unknown"))
-                .value_counts()
-                .reset_index()
-            )
-            language_counts.columns = [T["language"], T["review_count"]]
-
-            fig = px.pie(
-                language_counts,
-                names=T["language"],
-                values=T["review_count"],
-                title=T["language_distribution_title"],
-                hole=0.45,
-            )
-
-            fig.update_traces(
-                textposition="inside",
-                textinfo="percent+label",
-                pull=[0.03] * len(language_counts),
-            )
-
-            fig.update_layout(
-                template="plotly_white",
-                height=430,
-                margin=dict(l=30, r=30, t=70, b=45),
-                title=dict(
-                    x=0.02,
-                    xanchor="left",
-                    font=dict(size=18),
-                ),
-                font=dict(size=13),
-                legend_title_text=T["language"],
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=-0.25,
-                    xanchor="center",
-                    x=0.5,
-                ),
-            )
-
-            st.plotly_chart(fig, use_container_width=True)
-
-    with right:
-        st.subheader(T["sentiment_distribution"])
-
-        if "sentiment_label" in filtered.columns and filtered["sentiment_label"].notna().any():
-            sentiment_counts = (
-                filtered["sentiment_label"]
-                .fillna("unknown")
-                .astype(str)
-                .replace(L["sentiment"])
-                .value_counts()
-                .reset_index()
-            )
-
-            sentiment_counts.columns = [T["sentiment"], T["review_count"]]
-
-            fig = px.bar(
-                sentiment_counts,
-                x=T["review_count"],
-                y=T["sentiment"],
-                orientation="h",
-                title=T["sentiment_distribution_title"],
-                text=T["review_count"],
-            )
-
-            fig.update_traces(
-                textposition="outside",
-                cliponaxis=False,
-                marker_line_width=1,
-                marker_line_color="white",
-                opacity=0.9,
-            )
-
-            max_count = sentiment_counts[T["review_count"]].max()
-
-            fig.update_xaxes(
-                title_text=T["review_count"],
-                range=[0, max_count * 1.15 if max_count > 0 else 1],
-            )
-            fig.update_yaxes(title_text=T["sentiment"])
-
-            fig = style_plotly_chart(fig)
-            st.plotly_chart(fig, use_container_width=True)
+        if not quality.empty:
+            quality_display = quality.copy()
+            if "metric" in quality_display.columns:
+                quality_display["metric"] = quality_display["metric"].astype(str).replace(L["quality_metric"])
+            if "formula" in quality_display.columns:
+                quality_display["formula"] = quality_display["formula"].astype(str).replace(L["quality_formula"])
+            quality_display = quality_display.rename(columns=L["columns_quality"])
+            st.dataframe(quality_display, use_container_width=True, height=260)
         else:
-            st.info(T["no_sentiment"])
+            st.info(T["no_quality"])
 
-    st.subheader(T["type_distribution"])
+    with tab_reviews:
+        columns = [
+            "city", "type", "name", "source", "author", "text_cleaned", "review_text",
+            "rating", "rating_normalized", "review_date", "language",
+            "quality_status", "sentiment_label", "sentiment_score",
+        ]
+        columns = [c for c in columns if c in filtered.columns]
+        reviews_display = filtered[columns].copy()
+        reviews_display = translate_values(reviews_display, "type", L["type"])
+        reviews_display = translate_values(reviews_display, "quality_status", L["quality_status"])
+        reviews_display = translate_values(reviews_display, "sentiment_label", L["sentiment"])
+        reviews_display = translate_values(reviews_display, "language", L["language"])
 
-    if "type" in filtered.columns:
-        type_display = filtered.copy()
-        type_display = translate_column_values(type_display, "type", L["type"])
+        if "review_date" in reviews_display.columns:
+            reviews_display["review_date"] = reviews_display["review_date"].astype(str).replace("NaT", "")
 
-        type_counts = (
-            type_display["type"]
-            .fillna("unknown")
-            .value_counts()
-            .reset_index()
+        reviews_display = reviews_display.rename(columns=L["columns_reviews"])
+
+        st.download_button(
+            label=T["download"],
+            data=csv_bytes(reviews_display),
+            file_name="filtered_tourist_reviews.csv",
+            mime="text/csv",
         )
-        type_counts.columns = [T["type"], T["review_count"]]
+        st.dataframe(reviews_display, use_container_width=True, height=560)
 
-        fig = px.bar(
-            type_counts,
-            x=T["type"],
-            y=T["review_count"],
-            title=T["type_distribution"],
-            text=T["review_count"],
-        )
-
-        fig.update_traces(
-            textposition="outside",
-            cliponaxis=False,
-            marker_line_width=1,
-            marker_line_color="white",
-            opacity=0.9,
-        )
-
-        max_count = type_counts[T["review_count"]].max()
-
-        fig.update_xaxes(title_text=T["type"])
-        fig.update_yaxes(
-            title_text=T["review_count"],
-            range=[0, max_count * 1.15 if max_count > 0 else 1],
-        )
-
-        fig = style_plotly_chart(fig)
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader(T["quality"])
-
-    if not quality.empty:
-        quality_display = quality.copy()
-
-        if "metric" in quality_display.columns:
-            quality_display["metric"] = (
-                quality_display["metric"].astype(str).replace(L["quality_metric"])
-            )
-
-        if "formula" in quality_display.columns:
-            quality_display["formula"] = (
-                quality_display["formula"].astype(str).replace(L["quality_formula"])
-            )
-
-        quality_display = quality_display.rename(columns=L["columns_quality"])
-        st.dataframe(quality_display, use_container_width=True)
-    else:
-        st.info(T["no_quality"])
-
-    st.subheader(T["reviews_table"])
-
-    columns = [
-        "city",
-        "type",
-        "name",
-        "source",
-        "author",
-        "text_cleaned",
-        "rating_normalized",
-        "language",
-        "quality_status",
-        "sentiment_label",
-    ]
-    columns = [c for c in columns if c in filtered.columns]
-
-    reviews_display = filtered[columns].copy()
-
-    reviews_display = translate_column_values(reviews_display, "type", L["type"])
-    reviews_display = translate_column_values(
-        reviews_display,
-        "quality_status",
-        L["quality_status"],
-    )
-    reviews_display = translate_column_values(
-        reviews_display,
-        "sentiment_label",
-        L["sentiment"],
-    )
-    reviews_display = translate_column_values(
-        reviews_display,
-        "language",
-        L["language"],
-    )
-
-    reviews_display = reviews_display.rename(columns=L["columns_reviews"])
-
-    st.dataframe(reviews_display, use_container_width=True, height=420)
+    with tab_map:
+        if {"latitude", "longitude"}.issubset(filtered.columns):
+            map_df = filtered.dropna(subset=["latitude", "longitude"]).copy()
+            if not map_df.empty:
+                st.map(map_df, latitude="latitude", longitude="longitude", size=24)
+                map_cols = [c for c in ["city", "type", "name", "latitude", "longitude", "rating_normalized"] if c in map_df.columns]
+                map_display = map_df[map_cols].drop_duplicates().copy()
+                map_display = translate_values(map_display, "type", L["type"])
+                map_display = map_display.rename(columns=L["columns_reviews"])
+                st.dataframe(map_display, use_container_width=True, height=320)
+            else:
+                st.info(T["no_map"])
+        else:
+            st.info(T["no_map"])
 
 
 if __name__ == "__main__":

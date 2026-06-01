@@ -30,7 +30,7 @@ UI = {
     "ru": {
         "title": "Система анализа и визуализации отзывов туристических объектов",
         "caption": "Интерактивная панель для оценки туристических объектов на основе очищенных, нормализованных и подготовленных пользовательских отзывов.",
-        "badge": "Diploma Project",
+        "badge": "Дипломный проект",
         "filters": "Фильтры",
         "city": "Город",
         "type": "Тип объекта",
@@ -69,7 +69,7 @@ UI = {
         "object_name": "Название объекта",
         "no_quality": "quality_report.csv пока не найден.",
         "no_sentiment": "Нет результатов анализа тональности. Запустите predict-sentiment.",
-        "no_map": "Для карты нужны столбцы latitude и longitude.",
+        "no_map": "Координаты не найдены или пустые. Для карты нужны latitude/longitude либо lat/lon.",
         "empty_after_filters": "После применения фильтров данных не осталось.",
         "search": "Поиск по тексту отзыва или названию объекта",
         "reset_hint": "Чтобы вернуть все данные, очистите выбранные фильтры.",
@@ -80,7 +80,7 @@ UI = {
     "kk": {
         "title": "Туристік нысандар пікірлерін талдау және визуализациялау жүйесі",
         "caption": "Тазартылған, нормаланған және дайындалған пайдаланушы пікірлері негізінде туристік нысандарды бағалауға арналған интерактивті панель.",
-        "badge": "Diploma Project",
+        "badge": "Дипломдық жоба",
         "filters": "Сүзгілер",
         "city": "Қала",
         "type": "Нысан түрі",
@@ -119,7 +119,7 @@ UI = {
         "object_name": "Нысан атауы",
         "no_quality": "quality_report.csv файлы әзірге табылған жоқ.",
         "no_sentiment": "Тоналдылықты талдау нәтижелері жоқ. predict-sentiment іске қосыңыз.",
-        "no_map": "Карта үшін latitude және longitude бағандары қажет.",
+        "no_map": "Координаттар табылмады немесе бос. Карта үшін latitude/longitude немесе lat/lon қажет.",
         "empty_after_filters": "Сүзгілерден кейін деректер қалмады.",
         "search": "Пікір мәтіні немесе нысан атауы бойынша іздеу",
         "reset_hint": "Барлық деректерді қайтару үшін таңдалған сүзгілерді тазалаңыз.",
@@ -188,7 +188,7 @@ def inject_css() -> None:
     .hero:after {content:""; position:absolute; right:-80px; top:-80px; width:230px; height:230px; border-radius:999px; background:rgba(255,255,255,.12);}
     .hero h1 {font-size:34px; line-height:1.22; margin:0 0 10px 0; font-weight:850; letter-spacing:-.02em; max-width:980px;}
     .hero p {margin:0; font-size:16px; opacity:.94; max-width:940px;}
-    .hero-badge {z-index:1; padding:12px 18px; border-radius:999px; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.32); font-weight:750; white-space:nowrap;}
+    .hero-badge {z-index:1; padding:10px 15px; border-radius:999px; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.30); font-weight:750; white-space:nowrap; font-size:14px;}
     .metric-card, .info-card, .chart-card {
         border-radius:22px; background:rgba(255,255,255,.96); border:1px solid var(--line); box-shadow:var(--shadow);
     }
@@ -230,8 +230,51 @@ def get_database_url() -> str | None:
     return os.getenv("DATABASE_URL")
 
 
-def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+def _find_column(df: pd.DataFrame, candidates: list[str]) -> str | None:
+    lowered = {str(col).strip().lower(): col for col in df.columns}
+    for candidate in candidates:
+        key = candidate.strip().lower()
+        if key in lowered:
+            return lowered[key]
+    return None
+
+
+def standardize_coordinates(df: pd.DataFrame) -> pd.DataFrame:
+    """Создаёт стандартные поля latitude/longitude из разных вариантов названий."""
     df = df.copy()
+    latitude_aliases = [
+        "latitude", "lat", "y", "geo_lat", "coord_lat", "coords_lat",
+        "object_latitude", "latitude_object", "lat_object", "широта",
+    ]
+    longitude_aliases = [
+        "longitude", "lon", "lng", "long", "x", "geo_lon", "geo_lng",
+        "coord_lon", "coord_lng", "coords_lon", "coords_lng",
+        "object_longitude", "longitude_object", "lon_object", "lng_object", "долгота",
+    ]
+
+    lat_col = _find_column(df, latitude_aliases)
+    lon_col = _find_column(df, longitude_aliases)
+
+    if lat_col is not None and "latitude" not in df.columns:
+        df["latitude"] = df[lat_col]
+    if lon_col is not None and "longitude" not in df.columns:
+        df["longitude"] = df[lon_col]
+
+    for col in ["latitude", "longitude"]:
+        if col in df.columns:
+            df[col] = (
+                df[col]
+                .astype(str)
+                .str.replace(",", ".", regex=False)
+                .str.extract(r"([-+]?\d+(?:\.\d+)?)", expand=False)
+            )
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    return df
+
+
+def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    df = standardize_coordinates(df)
     for col in ["city", "type", "source", "language", "quality_status", "sentiment_label"]:
         if col not in df.columns:
             df[col] = "unknown"
@@ -269,6 +312,8 @@ def load_from_csv() -> tuple[pd.DataFrame, pd.DataFrame]:
     objects = pd.read_csv(OBJECTS_PROCESSED_CSV) if OBJECTS_PROCESSED_CSV.exists() else pd.DataFrame()
     sentiment = pd.read_csv(SENTIMENT_PREDICTIONS_CSV) if SENTIMENT_PREDICTIONS_CSV.exists() else pd.DataFrame()
     df = reviews.copy()
+    if not objects.empty:
+        objects = standardize_coordinates(objects)
 
     if not objects.empty:
         object_cols = [c for c in ["id", "source_object_id", "name", "type", "city", "latitude", "longitude", "source_url"] if c in objects.columns]
@@ -365,6 +410,36 @@ def style_chart(fig, height: int = 430):
     fig.update_xaxes(showgrid=False)
     fig.update_yaxes(gridcolor="rgba(15,23,42,.08)")
     return fig
+
+
+def style_donut_chart(fig, height: int = 430):
+    fig.update_traces(
+        textposition="inside",
+        textinfo="percent",
+        insidetextorientation="horizontal",
+        textfont_size=14,
+        marker=dict(line=dict(color="white", width=2)),
+        hovertemplate="%{label}<br>%{value} записей<br>%{percent}<extra></extra>",
+    )
+    fig.update_layout(
+        template="plotly_white",
+        height=height,
+        margin=dict(l=20, r=20, t=70, b=70),
+        title=dict(x=0.02, xanchor="left", font=dict(size=18)),
+        font=dict(size=13),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
+        uniformtext_minsize=12,
+        uniformtext_mode="hide",
+    )
+    return fig
+
+
+def format_percent(value: float | None) -> str:
+    if value is None or pd.isna(value):
+        return "—"
+    if abs(value) < 0.0005:
+        return "0%"
+    return f"{value:.1%}"
 
 
 def translate_values(df: pd.DataFrame, column: str, labels: dict[str, str]) -> pd.DataFrame:
@@ -486,9 +561,9 @@ def main() -> None:
     with c3:
         metric_card(T["avg_rating"], f"{avg_rating:.2f}" if pd.notna(avg_rating) else "—", "⭐", T["rating_normalized"])
     with c4:
-        metric_card(T["valid_share"], f"{valid_share:.1%}" if pd.notna(valid_share) else "—", "✅", T["quality_status"])
+        metric_card(T["valid_share"], format_percent(valid_share), "✅", T["quality_status"])
     with c5:
-        metric_card(T["duplicates"], f"{duplicate_share:.1%}" if pd.notna(duplicate_share) else "—", "♻️", T["quality"])
+        metric_card(T["duplicates"], format_percent(duplicate_share), "♻️", T["quality"])
 
     st.markdown("")
 
@@ -552,9 +627,8 @@ def main() -> None:
             chart_start(T["language_distribution"])
             language_counts = make_counts(filtered, "language", T["language"], T["review_count"], L["language"])
             if not language_counts.empty:
-                fig = px.pie(language_counts, names=T["language"], values=T["review_count"], title=T["language_distribution_title"], hole=.45)
-                fig.update_traces(textposition="inside", textinfo="percent+label")
-                st.plotly_chart(style_chart(fig), use_container_width=True)
+                fig = px.pie(language_counts, names=T["language"], values=T["review_count"], title=T["language_distribution_title"], hole=.48)
+                st.plotly_chart(style_donut_chart(fig), use_container_width=True)
             chart_end()
 
         with col_b:
@@ -585,8 +659,7 @@ def main() -> None:
             source_counts = make_counts(filtered, "source", T["source"], T["review_count"])
             if not source_counts.empty:
                 fig = px.pie(source_counts, names=T["source"], values=T["review_count"], title=T["source_distribution"], hole=.52)
-                fig.update_traces(textposition="inside", textinfo="percent+label")
-                st.plotly_chart(style_chart(fig), use_container_width=True)
+                st.plotly_chart(style_donut_chart(fig), use_container_width=True)
             chart_end()
 
     with tab_quality:
@@ -641,6 +714,7 @@ def main() -> None:
         st.dataframe(reviews_display, use_container_width=True, height=560)
 
     with tab_map:
+        filtered = standardize_coordinates(filtered)
         if {"latitude", "longitude"}.issubset(filtered.columns):
             map_df = filtered.dropna(subset=["latitude", "longitude"]).copy()
             if not map_df.empty:

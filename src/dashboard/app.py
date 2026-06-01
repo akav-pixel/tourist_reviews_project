@@ -341,23 +341,61 @@ def load_from_db(database_url: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     engine = create_engine(database_url, pool_pre_ping=True)
 
     sql_with_analysis = text("""
+        WITH latest_analysis AS (
+            SELECT DISTINCT ON (review_id)
+                review_id,
+                sentiment_label,
+                sentiment_score,
+                model_name,
+                feature_method,
+                predicted_at
+            FROM review_analysis
+            ORDER BY review_id, predicted_at DESC NULLS LAST, id DESC
+        )
         SELECT
-            r.review_id, r.author, r.review_text, r.text_cleaned, r.rating, r.rating_normalized,
-            r.review_date, r.language, r.quality_status, r.is_duplicate, r.source,
-            o.name, o.type, o.city, o.latitude, o.longitude,
-            COALESCE(a.sentiment_label, r.sentiment_label) AS sentiment_label,
-            COALESCE(a.sentiment_score, r.sentiment_score) AS sentiment_score
+            r.review_id,
+            r.author,
+            r.review_text,
+            r.text_cleaned,
+            r.rating,
+            r.rating_normalized,
+            r.review_date,
+            r.language,
+            r.quality_status,
+            r.is_duplicate,
+            r.source,
+            o.name,
+            o.type,
+            o.city,
+            o.latitude,
+            o.longitude,
+            a.sentiment_label AS sentiment_label,
+            a.sentiment_score AS sentiment_score
         FROM reviews r
         JOIN tourist_objects o ON o.id = r.object_id
-        LEFT JOIN review_analysis a ON a.review_id = r.id
+        LEFT JOIN latest_analysis a ON a.review_id = r.id
     """)
 
     sql_without_analysis = text("""
         SELECT
-            r.review_id, r.author, r.review_text, r.text_cleaned, r.rating, r.rating_normalized,
-            r.review_date, r.language, r.quality_status, r.is_duplicate, r.source,
-            r.sentiment_label, r.sentiment_score,
-            o.name, o.type, o.city, o.latitude, o.longitude
+            r.review_id,
+            r.author,
+            r.review_text,
+            r.text_cleaned,
+            r.rating,
+            r.rating_normalized,
+            r.review_date,
+            r.language,
+            r.quality_status,
+            r.is_duplicate,
+            r.source,
+            o.name,
+            o.type,
+            o.city,
+            o.latitude,
+            o.longitude,
+            NULL::text AS sentiment_label,
+            NULL::numeric AS sentiment_score
         FROM reviews r
         JOIN tourist_objects o ON o.id = r.object_id
     """)
@@ -440,6 +478,32 @@ def format_percent(value: float | None) -> str:
     if abs(value) < 0.0005:
         return "0%"
     return f"{value:.1%}"
+
+
+def to_bool_series(series: pd.Series) -> pd.Series:
+    return (
+        series
+        .fillna(False)
+        .astype(str)
+        .str.lower()
+        .map({
+            "true": True,
+            "1": True,
+            "yes": True,
+            "y": True,
+            "да": True,
+            "false": False,
+            "0": False,
+            "no": False,
+            "n": False,
+            "нет": False,
+            "nan": False,
+            "none": False,
+            "": False,
+        })
+        .fillna(False)
+        .astype(bool)
+    )
 
 
 def translate_values(df: pd.DataFrame, column: str, labels: dict[str, str]) -> pd.DataFrame:
@@ -551,7 +615,7 @@ def main() -> None:
     review_count = len(filtered)
     avg_rating = filtered["rating_normalized"].mean() if "rating_normalized" in filtered.columns else None
     valid_share = (filtered["quality_status"].astype(str) == "valid").mean() if "quality_status" in filtered.columns else None
-    duplicate_share = filtered["is_duplicate"].fillna(False).astype(bool).mean() if "is_duplicate" in filtered.columns else None
+    duplicate_share = to_bool_series(filtered["is_duplicate"]).mean() if "is_duplicate" in filtered.columns else None
 
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
@@ -717,6 +781,7 @@ def main() -> None:
         filtered = standardize_coordinates(filtered)
         if {"latitude", "longitude"}.issubset(filtered.columns):
             map_df = filtered.dropna(subset=["latitude", "longitude"]).copy()
+            map_df = map_df.drop_duplicates(subset=["name", "latitude", "longitude"])
             if not map_df.empty:
                 st.map(map_df, latitude="latitude", longitude="longitude", size=24)
                 map_cols = [c for c in ["city", "type", "name", "latitude", "longitude", "rating_normalized"] if c in map_df.columns]

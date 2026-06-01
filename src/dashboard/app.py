@@ -1,12 +1,15 @@
 from __future__ import annotations
+from urllib.parse import quote_plus
 
 import os
 from pathlib import Path
+from urllib.parse import quote_plus
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 from sqlalchemy import create_engine, text
+
 
 ROOT = Path(__file__).resolve().parents[2]
 PROCESSED_DIR = ROOT / 'data' / 'processed'
@@ -19,16 +22,73 @@ st.set_page_config(
     page_title='Tourist Reviews Analytics',
     page_icon='🏛️',
     layout='wide',
-)
 
+)
+QUALITY_COLUMNS_RU = {
+    "metric": "Показатель",
+    "formula": "Формула",
+    "numerator": "Числитель",
+    "denominator": "Знаменатель",
+    "value": "Значение",
+}
+
+REVIEWS_COLUMNS_RU = {
+    "city": "Город",
+    "type": "Тип объекта",
+    "name": "Название объекта",
+    "source": "Источник",
+    "author": "Автор",
+    "text_cleaned": "Очищенный текст отзыва",
+    "rating_normalized": "Нормализованная оценка",
+    "language": "Язык",
+    "quality_status": "Статус качества",
+    "sentiment_label": "Тональность",
+}
+
+TYPE_LABELS_RU = {
+    "museum": "Музей",
+    "hotel": "Отель",
+    "attraction": "Достопримечательность",
+    "restaurant": "Ресторан",
+    "recreation": "Зона отдыха",
+}
+
+QUALITY_STATUS_RU = {
+    "valid": "Пригоден",
+    "limited": "Ограниченно пригоден",
+    "rejected": "Отклонён",
+}
+
+SENTIMENT_RU = {
+    "positive": "Положительная",
+    "neutral": "Нейтральная",
+    "negative": "Отрицательная",
+}
 
 def get_database_url() -> str | None:
     try:
-        if 'DATABASE_URL' in st.secrets:
-            return st.secrets['DATABASE_URL']
+        if "DATABASE_URL" in st.secrets:
+            return st.secrets["DATABASE_URL"]
+
+        if "postgres" in st.secrets:
+            cfg = st.secrets["postgres"]
+
+            user = cfg["user"]
+            password = quote_plus(cfg["password"])
+            host = cfg["host"]
+            port = cfg["port"]
+            database = cfg["database"]
+            sslmode = cfg.get("sslmode", "require")
+
+            return (
+                f"postgresql+psycopg2://{user}:{password}"
+                f"@{host}:{port}/{database}?sslmode={sslmode}"
+            )
+
     except Exception:
         pass
-    return os.getenv('DATABASE_URL')
+
+    return os.getenv("DATABASE_URL")
 
 
 @st.cache_data(show_spinner=False)
@@ -160,7 +220,8 @@ def main() -> None:
 
     st.subheader('Качество данных')
     if not quality.empty:
-        st.dataframe(quality, use_container_width=True)
+        quality_display = quality.rename(columns=QUALITY_COLUMNS_RU)
+        st.dataframe(quality_display, use_container_width=True)
     else:
         st.info('quality_report.csv пока не найден.')
 
@@ -170,8 +231,20 @@ def main() -> None:
         'rating_normalized', 'language', 'quality_status', 'sentiment_label'
     ]
     columns = [c for c in columns if c in filtered.columns]
-    st.dataframe(filtered[columns], use_container_width=True, height=420)
+    reviews_display = filtered[columns].copy()
 
+    if "type" in reviews_display.columns:
+        reviews_display["type"] = reviews_display["type"].replace(TYPE_LABELS_RU)
+
+    if "quality_status" in reviews_display.columns:
+        reviews_display["quality_status"] = reviews_display["quality_status"].replace(QUALITY_STATUS_RU)
+
+    if "sentiment_label" in reviews_display.columns:
+        reviews_display["sentiment_label"] = reviews_display["sentiment_label"].replace(SENTIMENT_RU)
+
+    reviews_display = reviews_display.rename(columns=REVIEWS_COLUMNS_RU)
+
+    st.dataframe(reviews_display, use_container_width=True, height=420)
 
 if __name__ == '__main__':
     main()

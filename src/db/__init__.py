@@ -1,0 +1,1 @@
+"""Tourist reviews project package."""

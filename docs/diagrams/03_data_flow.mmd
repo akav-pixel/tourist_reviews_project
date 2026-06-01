@@ -1,0 +1,11 @@
+flowchart LR
+    A["Рұқсат етілген API / Export / CSV / JSON / Ашық датасет"] --> B["Raw Storage"]
+    B --> C["Preprocessing"]
+    C --> D["Duplicate Check"]
+    D --> E["PostgreSQL reviews"]
+    E --> F["Corpus Builder"]
+    F --> G["corpus_reviews.csv"]
+    G --> H["TF-IDF"]
+    H --> I["Sentiment Model"]
+    I --> J["review_analysis"]
+    J --> K["Streamlit Dashboard"]

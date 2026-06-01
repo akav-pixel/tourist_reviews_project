@@ -1,0 +1,6 @@
+﻿source,source_object_id,name,type,city,source_url,latitude,longitude,normalized_name,canonical_key
+2gis,osk_museum_001,Шығыс Қазақстан облыстық сәулет-этнографиялық музейі,museum,Өскемен,https://example.org/objects/osk_museum_001,49.9482,82.6275,шығыс қазақстан облыстық сәулет-этнографиялық музейі,өскемен|museum|шығыс қазақстан облыстық сәулет-этнографиялық музейі
+2gis,osk_hotel_001,Dedeman Oskemen Tavros Hotel,hotel,Өскемен,https://example.org/objects/osk_hotel_001,49.9474,82.6111,dedeman oskemen tavros hotel,өскемен|hotel|dedeman oskemen tavros hotel
+2gis,osk_sight_001,Қазақстан стеласы,attraction,Өскемен,https://example.org/objects/osk_sight_001,49.9601,82.7072,қазақстан стеласы,өскемен|attraction|қазақстан стеласы
+2gis,ast_museum_001,Қазақстан Республикасының Ұлттық музейі,museum,Астана,https://example.org/objects/ast_museum_001,51.1178,71.4694,қазақстан республикасының ұлттық музейі,астана|museum|қазақстан республикасының ұлттық музейі
+2gis,alm_sight_001,Көктөбе,attraction,Алматы,https://example.org/objects/alm_sight_001,43.2339,76.9762,көктөбе,алматы|attraction|көктөбе

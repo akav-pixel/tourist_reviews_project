@@ -1,0 +1,67 @@
+erDiagram
+    canonical_objects ||--o{ tourist_objects : groups
+    parse_runs ||--o{ tourist_objects : loads
+    parse_runs ||--o{ reviews : loads
+    parse_runs ||--o{ parser_errors : logs
+    tourist_objects ||--o{ reviews : has
+    reviews ||--o{ review_analysis : analyzed_by
+    model_runs ||--o{ review_analysis : produces
+
+    canonical_objects {
+        bigint canonical_object_id PK
+        varchar canonical_name
+        varchar object_type
+        varchar city
+        numeric latitude
+        numeric longitude
+        varchar normalized_name
+        timestamp created_at
+    }
+
+    tourist_objects {
+        bigint id PK
+        varchar name
+        varchar type
+        varchar city
+        varchar source
+        varchar source_object_id
+        text source_url
+        numeric latitude
+        numeric longitude
+        bigint canonical_object_id FK
+        varchar normalized_name
+        timestamp loaded_at
+        bigint parse_run_id FK
+        text raw_ref
+    }
+
+    reviews {
+        bigint id PK
+        bigint object_id FK
+        varchar source
+        varchar review_id
+        text author
+        text review_text
+        text text_cleaned
+        numeric rating
+        numeric rating_normalized
+        date review_date
+        varchar language
+        text url
+        timestamp loaded_at
+        varchar quality_status
+        boolean is_duplicate
+        text raw_ref
+        bigint parse_run_id FK
+    }
+
+    review_analysis {
+        bigint id PK
+        bigint review_id FK
+        varchar sentiment_label
+        numeric sentiment_score
+        varchar model_name
+        varchar feature_method
+        timestamp predicted_at
+        bigint model_run_id FK
+    }

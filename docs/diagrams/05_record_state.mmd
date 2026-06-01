@@ -1,0 +1,12 @@
+stateDiagram-v2
+    [*] --> raw
+    raw --> cleaned: мәтінді тазалау
+    cleaned --> validated: сапаны тексеру
+    validated --> stored: PostgreSQL жазу
+    stored --> included_in_corpus: корпусқа қосу
+    included_in_corpus --> analyzed: ML талдау
+    raw --> rejected: бос немесе жарамсыз жазба
+    cleaned --> rejected: жеткіліксіз мәтін
+    validated --> rejected: қайталанған немесе сапасыз жазба
+    analyzed --> [*]
+    rejected --> [*]

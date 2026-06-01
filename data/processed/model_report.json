@@ -1,0 +1,9 @@
+{
+  "model_name": "LogisticRegression",
+  "feature_method": "TF-IDF",
+  "train_size": 7,
+  "test_size": 3,
+  "accuracy": 0.6666666666666666,
+  "macro_f1": 0.4,
+  "label_source": "weak_rating_labels_if_manual_labels_absent"
+}

@@ -1,0 +1,50 @@
+flowchart TB
+    subgraph L1["1. Сыртқы дереккөздер қабаты"]
+        A1["2GIS"]
+        A2["CSV/JSON импорт"]
+        A3["Ашық датасеттер"]
+        A4["API / Export"]
+    end
+
+    subgraph L2["2. Деректерді жинау және импорттау қабаты"]
+        B1["Object Loader"]
+        B2["Import Adapter"]
+        B3["Review Import / Parser"]
+    end
+
+    subgraph L3["3. Алдын ала өңдеу қабаты"]
+        C1["Raw Storage"]
+        C2["Preprocessing Module"]
+        C3["Object Reconciliation"]
+        C4["Corpus Builder"]
+    end
+
+    subgraph L4["4. Деректерді сақтау қабаты"]
+        D1[("PostgreSQL")]
+        D2["tourist_objects"]
+        D3["reviews"]
+        D4["canonical_objects"]
+        D5["parse_runs"]
+        D6["parser_errors"]
+        D7["review_analysis"]
+    end
+
+    subgraph L5["5. Талдау қабаты"]
+        E1["TF-IDF"]
+        E2["ML Analysis Module"]
+        E3["Sentiment Classification"]
+    end
+
+    subgraph L6["6. Визуализация және пайдаланушы қабаты"]
+        F1["Streamlit Dashboard"]
+        F2["Plotly визуализациялары"]
+        F3["Зерттеуші / пайдаланушы"]
+    end
+
+    L1 --> L2 --> L3 --> L4 --> L5 --> L6
+    D1 --> D2
+    D1 --> D3
+    D1 --> D4
+    D1 --> D5
+    D1 --> D6
+    D1 --> D7

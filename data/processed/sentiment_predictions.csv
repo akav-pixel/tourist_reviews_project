@@ -1,0 +1,11 @@
+﻿review_id,source,source_object_id,text_cleaned,rating_normalized,language,review_date,sentiment_label,sentiment_score,model_name,feature_method
+rev_001,yandex,osk_museum_001,"Музей өте қызықты, экспозициялар жақсы ұйымдастырылған. Балаларға да ұнады.",5.0,kk,2026-05-10,positive,0.612747,LogisticRegression,TF-IDF
+rev_002,yandex,osk_museum_001,"Хороший музей, но навигация внутри здания могла бы быть понятнее.",4.0,ru,2026-05-11,positive,0.612101,LogisticRegression,TF-IDF
+rev_003,google,osk_hotel_001,"Отель чистый, персонал вежливый, завтрак хороший. Цена немного высокая.",4.5,ru,2026-05-12,positive,0.564529,LogisticRegression,TF-IDF
+rev_004,yandex,osk_hotel_001,"Бөлмелер таза, қызмет көрсету сапасы жоғары. Орналасуы ыңғайлы.",5.0,kk,2026-05-13,positive,0.614395,LogisticRegression,TF-IDF
+rev_005,yandex,osk_sight_001,"Красивое место для прогулки, но вечером не хватало освещения.",3.5,ru,2026-05-14,neutral,0.614778,LogisticRegression,TF-IDF
+rev_006,google,osk_sight_001,"Көрініс жақсы, бірақ ақпараттық тақтайшалар аз.",3.0,kk,2026-05-15,neutral,0.611571,LogisticRegression,TF-IDF
+rev_007,csv,ast_museum_001,Кең әрі заманауи музей. Экспозиция ұлттық тарихты жақсы көрсетеді.,5.0,kk,2026-05-16,positive,0.548614,LogisticRegression,TF-IDF
+rev_008,csv,ast_museum_001,"Очень большой музей, много залов. Нужно больше времени на осмотр.",4.0,ru,2026-05-17,positive,0.617523,LogisticRegression,TF-IDF
+rev_009,csv,alm_sight_001,"Табиғаты әдемі, бірақ демалыс күндері адам өте көп.",4.0,kk,2026-05-18,positive,0.609102,LogisticRegression,TF-IDF
+rev_010,csv,alm_sight_001,"Вид отличный, но очереди и цены на некоторые услуги завышены.",3.0,ru,2026-05-19,positive,0.547373,LogisticRegression,TF-IDF

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Secrets
+.env
+.streamlit/secrets.toml
+
+# Local data and logs
+*.log
+data/logs/*.log
+
+# Models can be regenerated; remove this rule if you want to commit demo models
+# models/*.pkl
+
+# IDE
+.vscode/
+.idea/
+.DS_Store

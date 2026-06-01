@@ -1,0 +1,29 @@
+sequenceDiagram
+    actor U as Зерттеуші
+    participant C as Main Controller
+    participant O as Object Loader
+    participant I as Import Adapter / Review Parser
+    participant R as Raw Storage
+    participant P as Preprocessing Module
+    participant DB as DB Repository / PostgreSQL
+    participant CB as Corpus Builder
+    participant ML as ML Analysis Module
+    participant D as Dashboard
+
+    U->>C: қала, нысан түрі, дереккөз параметрлерін енгізу
+    C->>O: туристік нысандар тізімін алу
+    O-->>C: object list
+    C->>I: пікірлерді импорттау / қабылдау
+    I-->>C: raw reviews
+    C->>R: бастапқы деректерді сақтау
+    C->>P: тазалау, нормализация, тіл анықтау
+    P-->>C: processed reviews
+    C->>DB: tourist_objects және reviews жазу
+    C->>CB: corpus_reviews.csv қалыптастыру
+    CB-->>C: corpus
+    C->>ML: TF-IDF және тоналдылықты анықтау
+    ML->>DB: review_analysis нәтижелерін сақтау
+    U->>D: визуалды талдау сұранысы
+    D->>DB: дайын нәтижелерді оқу
+    DB-->>D: аналитикалық деректер
+    D-->>U: графиктер, метрикалар, кестелер

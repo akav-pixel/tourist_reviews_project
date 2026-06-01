@@ -66,6 +66,7 @@ SENTIMENT_RU = {
 }
 QUALITY_METRIC_RU = {
     "K_tolyqtyk": "Коэффициент полноты",
+    "K_tolyktyk": "Коэффициент полноты",
     "K_dubl": "Доля дубликатов",
     "K_zharamdy": "Доля пригодных записей",
     "K_unknown": "Доля неопределённого языка",
@@ -73,6 +74,7 @@ QUALITY_METRIC_RU = {
 
 QUALITY_FORMULA_RU = {
     "N_tolyq / N_zhalpy": "N_полных / N_общих",
+    "N_tolyk / N_zhalpy": "N_полных / N_общих",
     "N_dubl / N_zhalpy": "N_дубликатов / N_общих",
     "N_korpus / N_zhinalgan": "N_корпус / N_собранных",
     "N_unknown / N_zhalpy": "N_unknown / N_общих",

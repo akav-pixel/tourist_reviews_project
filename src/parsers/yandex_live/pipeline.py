@@ -21,10 +21,26 @@ from .yandex_live_parser import (
 )
 
 
+CITY_ALIASES = {
+    "Усть-Каменогорск": "Өскемен",
+    "Усть Каменогорск": "Өскемен",
+    "Каменогорск": "Өскемен",
+    "Оскемен": "Өскемен",
+    "Oskemen": "Өскемен",
+    "Ust-Kamenogorsk": "Өскемен",
+    "Ust Kamenogorsk": "Өскемен",
+}
+
+
+def normalize_city(value: object) -> str:
+    city = str(value or "").strip()
+    return CITY_ALIASES.get(city, city)
+
+
 def save_raw_csv(result: dict, raw_dir: str | Path) -> Path:
     """
-    Сохраняет raw-результат Яндекс-парсера также в CSV.
-    JSON сохраняется через save_raw_result(), CSV нужен для диагностики.
+    Сохраняет raw-результат Яндекс-парсера в CSV.
+    JSON сохраняется отдельно через save_raw_result().
     """
     raw_dir = Path(raw_dir)
     raw_dir.mkdir(parents=True, exist_ok=True)
@@ -53,7 +69,7 @@ def build_yandex_object_row(
     source_url: str,
 ) -> pd.DataFrame:
     """
-    Создаёт одну строку tourist_object для объекта из Яндекс Карт.
+    Создаёт строку объекта для tourist_objects.
     """
     return pd.DataFrame(
         [
@@ -62,7 +78,7 @@ def build_yandex_object_row(
                 "source_object_id": str(source_object_id),
                 "name": name,
                 "type": object_type,
-                "city": city,
+                "city": normalize_city(city),
                 "source_url": source_url,
                 "latitude": None,
                 "longitude": None,
@@ -73,8 +89,8 @@ def build_yandex_object_row(
 
 def normalize_yandex_reviews_df(result: dict) -> pd.DataFrame:
     """
-    Преобразует reviews из raw JSON в DataFrame и гарантирует,
-    что все строки имеют правильные source/source_object_id.
+    Преобразует список отзывов из raw JSON в DataFrame и гарантирует,
+    что каждая строка имеет правильные source/source_object_id/url.
     """
     reviews = result.get("reviews", [])
     source_object_id = str(result["meta"]["source_object_id"])
@@ -96,45 +112,56 @@ def normalize_yandex_reviews_df(result: dict) -> pd.DataFrame:
             ]
         )
 
-    df["source"] = "yandex"
-    df["source_object_id"] = source_object_id
-    df["url"] = source_url
-
     required_columns = {
+        "source": "yandex",
+        "source_object_id": source_object_id,
         "review_id": None,
         "author": "anonymous",
         "review_text": "",
         "rating": None,
         "review_date": None,
+        "url": source_url,
     }
 
     for column, default in required_columns.items():
         if column not in df.columns:
             df[column] = default
 
-    df["source_object_id"] = df["source_object_id"].astype(str)
-    df["source"] = df["source"].astype(str)
+    df["source"] = "yandex"
+    df["source_object_id"] = source_object_id
+    df["url"] = source_url
 
-    df = df.dropna(subset=["review_id", "review_text"])
-    df = df.drop_duplicates(subset=["source", "review_id"])
+    df["review_text"] = df["review_text"].fillna("").astype(str).str.strip()
+    df["review_id"] = df["review_id"].astype(str)
+    df["source_object_id"] = df["source_object_id"].astype(str)
+
+    df = df[df["review_text"] != ""].copy()
+    df = df.dropna(subset=["review_id"])
+    df = df.drop_duplicates(subset=["source", "review_id"], keep="last")
 
     return df
 
 
 def load_base_objects() -> pd.DataFrame:
     """
-    Загружает демонстрационные объекты, если файл существует.
-    Это нужно, чтобы dashboard сохранял базовый набор данных.
+    Загружает демонстрационные объекты, если нужно объединять
+    Яндекс-данные с sample-данными.
     """
     if Path(SAMPLE_OBJECTS_CSV).exists():
-        return load_objects_csv(SAMPLE_OBJECTS_CSV)
+        df = load_objects_csv(SAMPLE_OBJECTS_CSV)
+
+        if "city" in df.columns:
+            df["city"] = df["city"].apply(normalize_city)
+
+        return df
 
     return pd.DataFrame()
 
 
 def load_base_reviews() -> pd.DataFrame:
     """
-    Загружает демонстрационные отзывы, если файл существует.
+    Загружает демонстрационные отзывы, если нужно объединять
+    Яндекс-данные с sample-данными.
     """
     if Path(SAMPLE_REVIEWS_CSV).exists():
         return load_reviews_csv(SAMPLE_REVIEWS_CSV)
@@ -152,6 +179,7 @@ def run_yandex_live_pipeline(
     headless: bool = True,
     scrolls: int = 25,
     save_debug_html: bool = False,
+    include_sample_data: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Полный ingestion pipeline для Яндекс Карт.
@@ -161,13 +189,16 @@ def run_yandex_live_pipeline(
     2. Raw сохраняется в data/raw/yandex в JSON и CSV.
     3. Создаётся объект tourist_objects для Яндекс-объекта.
     4. Отзывы нормализуются.
-    5. Данные объединяются с демонстрационными sample-данными.
-    6. Выполняется preprocessing объектов и отзывов.
-    7. Сохраняются objects_processed.csv и reviews_processed.csv.
+    5. Выполняется preprocessing объектов и отзывов.
+    6. Сохраняются objects_processed.csv и reviews_processed.csv.
 
-    Возвращает:
-    objects_processed, reviews_processed
+    По умолчанию include_sample_data=False:
+    это значит, что после запуска parse-yandex в processed CSV
+    попадут только реальные данные Яндекс-парсера.
+    Так не будет старых skipped-записей из demo-данных.
     """
+    city = normalize_city(city)
+
     config = YandexParserConfig(
         url=url,
         city=city,
@@ -199,18 +230,31 @@ def run_yandex_live_pipeline(
 
     yandex_reviews = normalize_yandex_reviews_df(result)
 
-    base_objects = load_base_objects()
-    base_reviews = load_base_reviews()
+    if include_sample_data:
+        base_objects = load_base_objects()
+        base_reviews = load_base_reviews()
 
-    objects_all = pd.concat(
-        [base_objects, yandex_object],
-        ignore_index=True,
-    )
+        objects_all = pd.concat(
+            [base_objects, yandex_object],
+            ignore_index=True,
+        )
 
-    reviews_all = pd.concat(
-        [base_reviews, yandex_reviews],
-        ignore_index=True,
-    )
+        reviews_all = pd.concat(
+            [base_reviews, yandex_reviews],
+            ignore_index=True,
+        )
+    else:
+        objects_all = yandex_object.copy()
+        reviews_all = yandex_reviews.copy()
+
+    if "city" in objects_all.columns:
+        objects_all["city"] = objects_all["city"].apply(normalize_city)
+
+    objects_all["source"] = objects_all["source"].astype(str)
+    objects_all["source_object_id"] = objects_all["source_object_id"].astype(str)
+
+    reviews_all["source"] = reviews_all["source"].astype(str)
+    reviews_all["source_object_id"] = reviews_all["source_object_id"].astype(str)
 
     objects_all = objects_all.drop_duplicates(
         subset=["source", "source_object_id"],
@@ -225,9 +269,13 @@ def run_yandex_live_pipeline(
     objects_processed = add_canonical_key(preprocess_objects(objects_all))
     reviews_processed = preprocess_reviews(reviews_all)
 
+    # После preprocess_objects ещё раз фиксируем город.
+    if "city" in objects_processed.columns:
+        objects_processed["city"] = objects_processed["city"].apply(normalize_city)
+
     # ВАЖНО:
-    # После preprocess_reviews дополнительно гарантируем,
-    # что реальные отзывы Яндекса не потеряли source_object_id.
+    # После preprocess_reviews гарантируем, что реальные отзывы Яндекса
+    # не потеряли source/source_object_id/url.
     yandex_mask = reviews_processed["review_id"].astype(str).str.startswith(
         f"yandex_{source_object_id}_"
     )
@@ -236,7 +284,6 @@ def run_yandex_live_pipeline(
     reviews_processed.loc[yandex_mask, "source_object_id"] = source_object_id
     reviews_processed.loc[yandex_mask, "url"] = url
 
-    # То же самое для объекта.
     object_mask = (
         (objects_processed["source"].astype(str) == "yandex")
         & (objects_processed["source_object_id"].astype(str) == source_object_id)

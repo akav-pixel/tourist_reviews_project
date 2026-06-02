@@ -1,5 +1,5 @@
 ﻿metric,formula,numerator,denominator,value
-K_tolyktyk,N_tolyk / N_zhalpy,11,12,0.9167
-K_dubl,N_dubl / N_zhalpy,1,12,0.0833
-K_zharamdy,N_korpus / N_zhinalgan,10,12,0.8333
-K_unknown,N_unknown / N_zhalpy,1,12,0.0833
+K_tolyktyk,N_tolyk / N_zhalpy,63,64,0.9844
+K_dubl,N_dubl / N_zhalpy,1,64,0.0156
+K_zharamdy,N_korpus / N_zhinalgan,62,64,0.9688
+K_unknown,N_unknown / N_zhalpy,2,64,0.0312

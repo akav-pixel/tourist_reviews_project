@@ -1,0 +1,19 @@
+Uploaded archive was inspected by filename list. Integrated only the needed ingestion-layer concept and excluded unsafe/large local artifacts:
+- .venv/
+- .idea/
+- .env
+- __pycache__/
+- data/debug/*.html
+
+Original archive contained parser-related files such as:
+- src/yandex_live_parser.py
+- src/yandex_profile_parser.py
+- src/chrome_utils.py
+- src/extract_oid.py
+- src/diagnostics.py
+- src/normalizers/normalize_yandex_reviews.py
+- src/loaders/load_yandex_reviews_to_db.py
+- src/pipeline/run_yandex_pipeline.py
+
+In this integrated ZIP, the cleaned ingestion module is placed under:
+- src/parsers/yandex_live/

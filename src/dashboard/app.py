@@ -42,7 +42,7 @@ UI = {
         "reviews": "Отзывы",
         "avg_rating": "Средний рейтинг",
         "valid_share": "Доля пригодных",
-        "duplicates": "Дубликаты",
+        "duplicates": "Обнаружено дубликатов",
         "data_source": "Источник данных",
         "source_postgres": "PostgreSQL",
         "source_csv": "CSV demo fallback",
@@ -92,7 +92,7 @@ UI = {
         "reviews": "Пікірлер",
         "avg_rating": "Орташа рейтинг",
         "valid_share": "Жарамды үлесі",
-        "duplicates": "Дубликаттар",
+        "duplicates": "Анықталған дубликаттар",
         "data_source": "Деректер көзі",
         "source_postgres": "PostgreSQL",
         "source_csv": "CSV demo fallback",
@@ -605,17 +605,34 @@ def main() -> None:
         st.warning(T["empty_after_filters"])
         return
 
-    if "source_object_id" in filtered.columns:
-        object_count = int(filtered["source_object_id"].nunique())
-    elif "object_id" in filtered.columns:
-        object_count = int(filtered["object_id"].nunique())
-    else:
-        object_count = int(filtered["name"].nunique()) if "name" in filtered.columns else 0
+    # quality_df — выбранная пользователем выборка ДО исключения дубликатов.
+    # По ней считаются показатели качества, чтобы показать, сколько проблем было найдено.
+    quality_df = filtered.copy()
 
-    review_count = len(filtered)
-    avg_rating = filtered["rating_normalized"].mean() if "rating_normalized" in filtered.columns else None
-    valid_share = (filtered["quality_status"].astype(str) == "valid").mean() if "quality_status" in filtered.columns else None
-    duplicate_share = to_bool_series(filtered["is_duplicate"]).mean() if "is_duplicate" in filtered.columns else None
+    if "is_duplicate" in quality_df.columns:
+        duplicate_mask = to_bool_series(quality_df["is_duplicate"])
+        duplicate_share = duplicate_mask.mean()
+        analysis_df = quality_df.loc[~duplicate_mask].copy()
+    else:
+        duplicate_share = None
+        analysis_df = quality_df.copy()
+
+    # analysis_df — корпус для аналитики и визуализации ПОСЛЕ исключения дубликатов.
+    # Поэтому графики, таблица отзывов и карта не искажаются повторяющимися записями.
+    if analysis_df.empty:
+        st.warning(T["empty_after_filters"])
+        return
+
+    if "source_object_id" in analysis_df.columns:
+        object_count = int(analysis_df["source_object_id"].nunique())
+    elif "object_id" in analysis_df.columns:
+        object_count = int(analysis_df["object_id"].nunique())
+    else:
+        object_count = int(analysis_df["name"].nunique()) if "name" in analysis_df.columns else 0
+
+    review_count = len(analysis_df)
+    avg_rating = analysis_df["rating_normalized"].mean() if "rating_normalized" in analysis_df.columns else None
+    valid_share = (quality_df["quality_status"].astype(str) == "valid").mean() if "quality_status" in quality_df.columns else None
 
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
@@ -627,7 +644,7 @@ def main() -> None:
     with c4:
         metric_card(T["valid_share"], format_percent(valid_share), "✅", T["quality_status"])
     with c5:
-        metric_card(T["duplicates"], format_percent(duplicate_share), "♻️", T["quality"])
+        metric_card(T["duplicates"], format_percent(duplicate_share), "♻️", "До исключения из анализа" if interface_lang == "ru" else "Талдаудан шығару алдында")
 
     st.markdown("")
 
@@ -650,7 +667,7 @@ def main() -> None:
 
         with col_a:
             chart_start(T["city_distribution"])
-            city_counts = make_counts(filtered, "city", T["city"], T["review_count"])
+            city_counts = make_counts(analysis_df, "city", T["city"], T["review_count"])
             if not city_counts.empty:
                 fig = px.bar(city_counts.head(12), x=T["review_count"], y=T["city"], orientation="h", title=T["city_distribution"], text=T["review_count"])
                 fig.update_traces(textposition="outside", cliponaxis=False)
@@ -660,8 +677,8 @@ def main() -> None:
 
         with col_b:
             chart_start(T["top_objects"])
-            if "name" in filtered.columns:
-                obj_counts = filtered["name"].fillna("unknown").astype(str).value_counts().head(12).reset_index()
+            if "name" in analysis_df.columns:
+                obj_counts = analysis_df["name"].fillna("unknown").astype(str).value_counts().head(12).reset_index()
                 obj_counts.columns = [T["object_name"], T["review_count"]]
                 fig = px.bar(obj_counts, x=T["review_count"], y=T["object_name"], orientation="h", title=T["top_objects"], text=T["review_count"])
                 fig.update_traces(textposition="outside", cliponaxis=False)
@@ -671,8 +688,8 @@ def main() -> None:
 
     with tab_analytics:
         chart_start(T["rating_distribution"])
-        if "rating_normalized" in filtered.columns:
-            rating_df = filtered[filtered["rating_normalized"].notna()].copy()
+        if "rating_normalized" in analysis_df.columns:
+            rating_df = analysis_df[analysis_df["rating_normalized"].notna()].copy()
             rating_df["rating_group"] = rating_df["rating_normalized"].round(2)
             rating_counts = rating_df["rating_group"].value_counts().sort_index().reset_index()
             rating_counts.columns = [T["rating_normalized"], T["review_count"]]
@@ -689,7 +706,7 @@ def main() -> None:
 
         with col_a:
             chart_start(T["language_distribution"])
-            language_counts = make_counts(filtered, "language", T["language"], T["review_count"], L["language"])
+            language_counts = make_counts(analysis_df, "language", T["language"], T["review_count"], L["language"])
             if not language_counts.empty:
                 fig = px.pie(language_counts, names=T["language"], values=T["review_count"], title=T["language_distribution_title"], hole=.48)
                 st.plotly_chart(style_donut_chart(fig), use_container_width=True)
@@ -697,8 +714,8 @@ def main() -> None:
 
         with col_b:
             chart_start(T["sentiment_distribution"])
-            if "sentiment_label" in filtered.columns and filtered["sentiment_label"].notna().any():
-                sentiment_counts = make_counts(filtered, "sentiment_label", T["sentiment"], T["review_count"], L["sentiment"])
+            if "sentiment_label" in analysis_df.columns and analysis_df["sentiment_label"].notna().any():
+                sentiment_counts = make_counts(analysis_df, "sentiment_label", T["sentiment"], T["review_count"], L["sentiment"])
                 fig = px.bar(sentiment_counts, x=T["review_count"], y=T["sentiment"], orientation="h", title=T["sentiment_distribution_title"], text=T["review_count"])
                 fig.update_traces(textposition="outside", cliponaxis=False, marker_line_width=1, marker_line_color="white", opacity=.94)
                 fig.update_yaxes(autorange="reversed")
@@ -711,7 +728,7 @@ def main() -> None:
 
         with col_c:
             chart_start(T["type_distribution"])
-            type_counts = make_counts(filtered, "type", T["type"], T["review_count"], L["type"])
+            type_counts = make_counts(analysis_df, "type", T["type"], T["review_count"], L["type"])
             if not type_counts.empty:
                 fig = px.bar(type_counts, x=T["type"], y=T["review_count"], title=T["type_distribution"], text=T["review_count"])
                 fig.update_traces(textposition="outside", cliponaxis=False, marker_line_width=1, marker_line_color="white", opacity=.94)
@@ -720,7 +737,7 @@ def main() -> None:
 
         with col_d:
             chart_start(T["source_distribution"])
-            source_counts = make_counts(filtered, "source", T["source"], T["review_count"])
+            source_counts = make_counts(analysis_df, "source", T["source"], T["review_count"])
             if not source_counts.empty:
                 fig = px.pie(source_counts, names=T["source"], values=T["review_count"], title=T["source_distribution"], hole=.52)
                 st.plotly_chart(style_donut_chart(fig), use_container_width=True)
@@ -730,7 +747,7 @@ def main() -> None:
         col_a, col_b = st.columns([1, 1])
         with col_a:
             chart_start(T["quality_distribution"])
-            quality_counts = make_counts(filtered, "quality_status", T["quality_status"], T["review_count"], L["quality_status"])
+            quality_counts = make_counts(quality_df, "quality_status", T["quality_status"], T["review_count"], L["quality_status"])
             if not quality_counts.empty:
                 fig = px.bar(quality_counts, x=T["quality_status"], y=T["review_count"], title=T["quality_distribution"], text=T["review_count"])
                 fig.update_traces(textposition="outside", cliponaxis=False, marker_line_width=1, marker_line_color="white", opacity=.94)
@@ -738,7 +755,7 @@ def main() -> None:
             chart_end()
 
         with col_b:
-            info_card(T["quality"], "Valid / Жарамды — пригодно для корпуса; Limited / Шектеулі — используется ограниченно; Rejected / Қабылданбаған — исключается из основного анализа.")
+            info_card(T["quality"], "Valid / Жарамды — пригодно для корпуса; Limited / Шектеулі — используется ограниченно; Rejected / Қабылданбаған — исключается из основного анализа. Доля дубликатов считается до их исключения из аналитического корпуса.")
 
         if not quality.empty:
             quality_display = quality.copy()
@@ -757,8 +774,8 @@ def main() -> None:
             "rating", "rating_normalized", "review_date", "language",
             "quality_status", "sentiment_label", "sentiment_score",
         ]
-        columns = [c for c in columns if c in filtered.columns]
-        reviews_display = filtered[columns].copy()
+        columns = [c for c in columns if c in analysis_df.columns]
+        reviews_display = analysis_df[columns].copy()
         reviews_display = translate_values(reviews_display, "type", L["type"])
         reviews_display = translate_values(reviews_display, "quality_status", L["quality_status"])
         reviews_display = translate_values(reviews_display, "sentiment_label", L["sentiment"])
@@ -772,15 +789,15 @@ def main() -> None:
         st.download_button(
             label=T["download"],
             data=csv_bytes(reviews_display),
-            file_name="filtered_tourist_reviews.csv",
+            file_name="analysis_tourist_reviews.csv",
             mime="text/csv",
         )
         st.dataframe(reviews_display, use_container_width=True, height=560)
 
     with tab_map:
-        filtered = standardize_coordinates(filtered)
-        if {"latitude", "longitude"}.issubset(filtered.columns):
-            map_df = filtered.dropna(subset=["latitude", "longitude"]).copy()
+        map_source = standardize_coordinates(analysis_df)
+        if {"latitude", "longitude"}.issubset(map_source.columns):
+            map_df = map_source.dropna(subset=["latitude", "longitude"]).copy()
             map_df = map_df.drop_duplicates(subset=["name", "latitude", "longitude"])
             if not map_df.empty:
                 st.map(map_df, latitude="latitude", longitude="longitude", size=24)

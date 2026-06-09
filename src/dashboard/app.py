@@ -335,8 +335,7 @@ def load_from_csv() -> tuple[pd.DataFrame, pd.DataFrame]:
 
     return prepare_dataframe(df), load_quality_report()
 
-
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=60)
 def load_from_db(database_url: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     engine = create_engine(database_url, pool_pre_ping=True)
 
@@ -551,6 +550,10 @@ def csv_bytes(df: pd.DataFrame) -> bytes:
 
 def main() -> None:
     inject_css()
+
+    if st.sidebar.button("🔄 Обновить данные / Деректерді жаңарту"):
+        st.cache_data.clear()
+        st.rerun()
 
     interface_lang = st.sidebar.radio(
         "Интерфейс / Тіл",

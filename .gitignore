@@ -6,7 +6,9 @@ __pycache__/
 .venv/
 venv/
 env/
-
+data/raw/google_maps/
+data/raw/yandex/
+data/debug
 
 *.pyc
 data/debug/*

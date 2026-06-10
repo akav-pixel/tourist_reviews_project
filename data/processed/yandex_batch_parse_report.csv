@@ -1,0 +1,8 @@
+﻿name,city,type,url,status,reviews_count,error
+Усть-Каменогорск Отель,Өскемен,hotel,https://yandex.kz/maps/org/ust_kamenogorsk_otel/1244089476/reviews/?ll=82.627174%2C49.954283&z=17,success,161,
+City Hotel,Өскемен,hotel,https://yandex.kz/maps/org/city_hotel/59203902736/reviews/?ll=82.597296%2C49.972178&z=17,success,98,
+Семей,Өскемен,hotel,https://yandex.kz/maps/org/semey/1116788313/reviews/?ll=82.591384%2C49.975459&z=18,success,39,
+Shiny River,Өскемен,hotel,https://yandex.kz/maps/org/shiny_river/1192182763/reviews/?indoorLevel=1&ll=82.610295%2C49.954672&z=17,success,251,
+Мереке,Өскемен,hotel,https://yandex.kz/maps/org/mereke/1166317683/reviews/?ll=82.606193%2C49.977608&z=18,success,93,
+Гостевой двор Асар,Өскемен,hotel,https://yandex.kz/maps/org/gostevoy_dvor_asar/142699215802/reviews/?ll=82.589481%2C49.962965&z=17,success,13,
+Sweet Home,Өскемен,hotel,https://yandex.kz/maps/org/sweet_home/115449611008/reviews/?indoorLevel=1&ll=82.613161%2C49.955396&z=17,success,10,

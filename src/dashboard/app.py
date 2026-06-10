@@ -785,29 +785,130 @@ def main() -> None:
             chart_end()
 
     with tab_quality:
-        col_a, col_b = st.columns([1, 1])
+        total_quality = len(quality_df)
+
+        valid_count = int((quality_df["quality_status"].astype(
+            str) == "valid").sum()) if "quality_status" in quality_df.columns else 0
+        limited_count = int((quality_df["quality_status"].astype(
+            str) == "limited").sum()) if "quality_status" in quality_df.columns else 0
+        rejected_count = int((quality_df["quality_status"].astype(
+            str) == "rejected").sum()) if "quality_status" in quality_df.columns else 0
+
+        valid_percent = valid_count / total_quality if total_quality else None
+        limited_percent = limited_count / total_quality if total_quality else None
+        rejected_percent = rejected_count / total_quality if total_quality else None
+
+        q1, q2, q3, q4 = st.columns(4)
+
+        with q1:
+            metric_card(
+                "Жарамды / Пригодные",
+                f"{valid_count}",
+                "✅",
+                format_percent(valid_percent),
+            )
+
+        with q2:
+            metric_card(
+                "Шектеулі / Ограниченные",
+                f"{limited_count}",
+                "⚠️",
+                format_percent(limited_percent),
+            )
+
+        with q3:
+            metric_card(
+                "Қабылданбаған / Отклонённые",
+                f"{rejected_count}",
+                "⛔",
+                format_percent(rejected_percent),
+            )
+
+        with q4:
+            metric_card(
+                T["duplicates"],
+                format_percent(duplicate_share),
+                "♻️",
+                "До исключения из анализа" if interface_lang == "ru" else "Талдаудан шығару алдында",
+            )
+
+        st.markdown("")
+
+        col_a, col_b = st.columns([1.1, 1])
+
         with col_a:
             chart_start(T["quality_distribution"])
-            quality_counts = make_counts(quality_df, "quality_status", T["quality_status"], T["review_count"], L["quality_status"])
+
+            quality_counts = make_counts(
+                quality_df,
+                "quality_status",
+                T["quality_status"],
+                T["review_count"],
+                L["quality_status"],
+            )
+
             if not quality_counts.empty:
-                fig = px.bar(quality_counts, x=T["quality_status"], y=T["review_count"], title=T["quality_distribution"], text=T["review_count"])
-                fig.update_traces(textposition="outside", cliponaxis=False, marker_line_width=1, marker_line_color="white", opacity=.94)
+                fig = px.bar(
+                    quality_counts,
+                    x=T["quality_status"],
+                    y=T["review_count"],
+                    title=T["quality_distribution"],
+                    text=T["review_count"],
+                )
+
+                fig.update_traces(
+                    textposition="outside",
+                    cliponaxis=False,
+                    marker_line_width=1,
+                    marker_line_color="white",
+                    opacity=.94,
+                )
+
                 st.plotly_chart(style_chart(fig), use_container_width=True)
+
             chart_end()
 
         with col_b:
-            info_card(T["quality"], "Valid / Жарамды — пригодно для корпуса; Limited / Шектеулі — используется ограниченно; Rejected / Қабылданбаған — исключается из основного анализа. Доля дубликатов считается до их исключения из аналитического корпуса.")
+            if not quality.empty:
+                quality_display = quality.copy()
 
-        if not quality.empty:
-            quality_display = quality.copy()
-            if "metric" in quality_display.columns:
-                quality_display["metric"] = quality_display["metric"].astype(str).replace(L["quality_metric"])
-            if "formula" in quality_display.columns:
-                quality_display["formula"] = quality_display["formula"].astype(str).replace(L["quality_formula"])
-            quality_display = quality_display.rename(columns=L["columns_quality"])
-            st.dataframe(quality_display, use_container_width=True, height=260)
-        else:
-            st.info(T["no_quality"])
+                if "metric" in quality_display.columns:
+                    quality_display["metric"] = (
+                        quality_display["metric"]
+                        .astype(str)
+                        .replace(L["quality_metric"])
+                    )
+
+                if "formula" in quality_display.columns:
+                    quality_display["formula"] = (
+                        quality_display["formula"]
+                        .astype(str)
+                        .replace(L["quality_formula"])
+                    )
+
+                quality_display = quality_display.rename(columns=L["columns_quality"])
+
+                st.dataframe(
+                    quality_display,
+                    use_container_width=True,
+                    height=360,
+                )
+            else:
+                st.info(T["no_quality"])
+
+        with st.expander("ℹ️ Түсіндірме / Пояснение показателей"):
+            st.markdown(
+                """
+                **Valid / Жарамды** — отзыв пригоден для аналитического корпуса.
+
+                **Limited / Шектеулі** — отзыв можно использовать ограниченно, например при неполных данных.
+
+                **Rejected / Қабылданбаған** — отзыв исключается из основного анализа.
+
+                **Дубликаты** рассчитываются до исключения повторяющихся записей из аналитического корпуса. 
+                Это показывает, сколько повторов было обнаружено на этапе контроля качества данных.
+                """
+            )
 
     with tab_reviews:
         columns = [

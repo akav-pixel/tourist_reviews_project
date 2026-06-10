@@ -143,6 +143,7 @@ LABELS = {
         "quality_status": {"valid": "Пригоден", "limited": "Ограниченно пригоден", "rejected": "Отклонён", "unknown": "Не определён"},
         "sentiment": {"positive": "Положительная", "neutral": "Нейтральная", "negative": "Отрицательная", "unknown": "Не определена"},
         "language": {"ru": "Русский", "kk": "Казахский", "mixed": "Смешанный", "unknown": "Не определён"},
+        "source": {"yandex_maps": "Yandex Maps", "google_maps": "Google Maps", "2gis": "2GIS", "unknown": "Не определён"},
         "quality_metric": {"K_tolyqtyk": "Коэффициент полноты", "K_tolyktyk": "Коэффициент полноты", "K_dubl": "Доля дубликатов", "K_zharamdy": "Доля пригодных записей", "K_unknown": "Доля неопределённого языка"},
         "quality_formula": {"N_tolyq / N_zhalpy": "N_полных / N_общих", "N_tolyk / N_zhalpy": "N_полных / N_общих", "N_dubl / N_zhalpy": "N_дубликатов / N_общих", "N_korpus / N_zhinalgan": "N_корпус / N_собранных", "N_unknown / N_zhalpy": "N_unknown / N_общих"},
     },
@@ -159,6 +160,7 @@ LABELS = {
         "quality_status": {"valid": "Жарамды", "limited": "Шектеулі жарамды", "rejected": "Қабылданбаған", "unknown": "Анықталмаған"},
         "sentiment": {"positive": "Оң", "neutral": "Бейтарап", "negative": "Теріс", "unknown": "Анықталмаған"},
         "language": {"ru": "Орыс тілі", "kk": "Қазақ тілі", "mixed": "Аралас", "unknown": "Анықталмаған"},
+        "source": {"yandex_maps": "Yandex Maps", "google_maps": "Google Maps", "2gis": "2GIS", "unknown": "Анықталмаған"},
         "quality_metric": {"K_tolyqtyk": "Толықтық коэффициенті", "K_tolyktyk": "Толықтық коэффициенті", "K_dubl": "Қайталанатын жазбалар үлесі", "K_zharamdy": "Жарамды жазбалар үлесі", "K_unknown": "Тілі анықталмаған жазбалар үлесі"},
         "quality_formula": {"N_tolyq / N_zhalpy": "N_толық / N_жалпы", "N_tolyk / N_zhalpy": "N_толық / N_жалпы", "N_dubl / N_zhalpy": "N_дубликат / N_жалпы", "N_korpus / N_zhinalgan": "N_корпус / N_жиналған", "N_unknown / N_zhalpy": "N_unknown / N_жалпы"},
     },
@@ -273,12 +275,51 @@ def standardize_coordinates(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def normalize_source_value(value: object) -> str:
+    """Приводит разные названия одного источника к единому виду.
+
+    Например, yandex и yandex_maps считаются одним источником: yandex_maps.
+    Это нужно, чтобы в фильтре и диаграммах не появлялись два одинаковых источника.
+    """
+    if pd.isna(value):
+        return "unknown"
+
+    source = str(value).strip().lower()
+    source = source.replace("-", "_").replace(" ", "_")
+
+    source_aliases = {
+        "yandex": "yandex_maps",
+        "yandex_map": "yandex_maps",
+        "yandex_maps": "yandex_maps",
+        "яндекс": "yandex_maps",
+        "яндекс_карты": "yandex_maps",
+        "yandex_karty": "yandex_maps",
+
+        "google": "google_maps",
+        "google_map": "google_maps",
+        "google_maps": "google_maps",
+        "googlemaps": "google_maps",
+        "гугл": "google_maps",
+        "гугл_карты": "google_maps",
+
+        "2gis": "2gis",
+        "2_gis": "2gis",
+        "doublegis": "2gis",
+        "двугис": "2gis",
+    }
+
+    return source_aliases.get(source, source or "unknown")
+
+
 def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = standardize_coordinates(df)
     for col in ["city", "type", "source", "language", "quality_status", "sentiment_label"]:
         if col not in df.columns:
             df[col] = "unknown"
         df[col] = df[col].fillna("unknown").astype(str)
+
+    # Нормализация источников: yandex и yandex_maps объединяются в один источник.
+    df["source"] = df["source"].apply(normalize_source_value)
 
     if "name" not in df.columns:
         df["name"] = "unknown"
@@ -335,7 +376,8 @@ def load_from_csv() -> tuple[pd.DataFrame, pd.DataFrame]:
 
     return prepare_dataframe(df), load_quality_report()
 
-@st.cache_data(show_spinner=False, ttl=60)
+
+@st.cache_data(show_spinner=False)
 def load_from_db(database_url: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     engine = create_engine(database_url, pool_pre_ping=True)
 
@@ -551,10 +593,6 @@ def csv_bytes(df: pd.DataFrame) -> bytes:
 def main() -> None:
     inject_css()
 
-    if st.sidebar.button("🔄 Обновить данные / Деректерді жаңарту"):
-        st.cache_data.clear()
-        st.rerun()
-
     interface_lang = st.sidebar.radio(
         "Интерфейс / Тіл",
         options=["ru", "kk"],
@@ -597,7 +635,7 @@ def main() -> None:
     filtered = df.copy()
     filtered = multiselect_filter(filtered, "city", T["city"])
     filtered = multiselect_filter(filtered, "type", T["type"], L["type"])
-    filtered = multiselect_filter(filtered, "source", T["source"])
+    filtered = multiselect_filter(filtered, "source", T["source"], L["source"])
     filtered = multiselect_filter(filtered, "language", T["language"], L["language"])
     filtered = multiselect_filter(filtered, "quality_status", T["quality_status"], L["quality_status"])
     filtered = multiselect_filter(filtered, "sentiment_label", T["sentiment"], L["sentiment"])
@@ -740,7 +778,7 @@ def main() -> None:
 
         with col_d:
             chart_start(T["source_distribution"])
-            source_counts = make_counts(analysis_df, "source", T["source"], T["review_count"])
+            source_counts = make_counts(analysis_df, "source", T["source"], T["review_count"], L["source"])
             if not source_counts.empty:
                 fig = px.pie(source_counts, names=T["source"], values=T["review_count"], title=T["source_distribution"], hole=.52)
                 st.plotly_chart(style_donut_chart(fig), use_container_width=True)
@@ -780,6 +818,7 @@ def main() -> None:
         columns = [c for c in columns if c in analysis_df.columns]
         reviews_display = analysis_df[columns].copy()
         reviews_display = translate_values(reviews_display, "type", L["type"])
+        reviews_display = translate_values(reviews_display, "source", L["source"])
         reviews_display = translate_values(reviews_display, "quality_status", L["quality_status"])
         reviews_display = translate_values(reviews_display, "sentiment_label", L["sentiment"])
         reviews_display = translate_values(reviews_display, "language", L["language"])
